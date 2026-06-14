@@ -22,7 +22,7 @@ Toque suas próprias músicas direto do navegador, sem anúncios, sem cadastro e
 
 ## 🖥️ Como usar
 
-1. Acesse o link do projeto (veja [Demo](#-demo) abaixo)
+1. Acesse o link do projeto (veja abaixo)
 2. Toque em **"Adicionar músicas"** para escolher arquivos, ou em **"Adicionar pasta"** para importar uma pasta inteira de uma vez
 3. Clique em uma música da playlist para tocar
 4. Use os controles para pausar, avançar, ativar modo aleatório ou repetição
@@ -31,11 +31,9 @@ Toque suas próprias músicas direto do navegador, sem anúncios, sem cadastro e
 
 ---
 
-## 🚀 Demo
+## 🚀
 
-Acesse: `https://SEU-USUARIO.github.io/plinq-music-player/`
-
-*(substitua pelo link gerado pelo GitHub Pages do seu repositório)*
+Acesse: https://hdjlucas-maker.github.io/plinq-music-player
 
 ---
 
