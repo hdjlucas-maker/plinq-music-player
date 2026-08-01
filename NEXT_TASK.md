@@ -1,31 +1,8 @@
 # Próxima tarefa
 
-Implementar Crossfade.
+A definir com o usuário. Opções em aberto:
 
-Arquivos:
-
-script.js
-
-style.css
-
-Objetivos
-
-Criar dois elementos Audio.
-
-Utilizar GainNode.
-
-Fade de 3 segundos.
-
-Opção:
-
-Desligado
-
-3s
-
-6s
-
-10s
-
-Após finalizar:
-
-Atualizar PROJECT_STATUS.md
+1. Persistência real (File System Access API + IndexedDB + Media Session)
+2. Sistema Premium (trial 30 dias + R$9,99, Cloudflare Workers + D1 + KV, InfinitePay)
+3. Biblioteca Jamendo / aba Descobrir
+4. Testar manualmente o Crossfade/Gapless/Sleep Timer recém implementado e reportar bugs

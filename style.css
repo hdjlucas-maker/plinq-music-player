@@ -229,6 +229,73 @@ body {
   cursor: pointer;
 }
 
+/* Extras: Crossfade + Sleep Timer */
+.extras-row {
+  display: flex;
+  gap: 8px;
+  padding: 0 18px 14px;
+}
+
+.extra-control {
+  position: relative;
+  flex: 1;
+}
+
+.extra-btn {
+  width: 100%;
+  background: var(--bg-panel-2);
+  border: 1px solid var(--border);
+  color: var(--text-mute);
+  border-radius: 7px;
+  padding: 8px 10px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.extra-btn svg { width: 14px; height: 14px; flex-shrink: 0; }
+.extra-btn:hover { background: #1a222b; color: var(--text-main); }
+
+.extra-btn.on {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.extra-menu {
+  display: none;
+  flex-direction: column;
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: calc(100% + 6px);
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+  z-index: 10;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+}
+
+.extra-menu.open { display: flex; }
+
+.extra-menu button {
+  background: none;
+  border: none;
+  color: var(--text-main);
+  padding: 9px 12px;
+  text-align: left;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.extra-menu button:hover { background: rgba(63,231,255,0.08); color: var(--accent); }
+.extra-menu button + button { border-top: 1px solid var(--border); }
+
 /* Playlist */
 .playlist-section {
   border-top: 1px solid var(--border);
@@ -370,6 +437,11 @@ label.add-files-btn {
 
 .playlist li:hover .remove-btn { opacity: 1; }
 .playlist li .remove-btn:hover { color: #ff6b6b; }
+
+/* Touch devices have no :hover — keep the remove button visible/tappable */
+@media (hover: none) {
+  .playlist li .remove-btn { opacity: 1; }
+}
 .playlist li .remove-btn svg { width: 14px; height: 14px; }
 
 .empty-state {
