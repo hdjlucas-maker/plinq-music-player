@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Plinq</string>
+    <string name="title_activity_main">Plinq</string>
+    <string name="package_name">com.plinq.app</string>
+    <string name="custom_url_scheme">com.plinq.app</string>
+</resources>
