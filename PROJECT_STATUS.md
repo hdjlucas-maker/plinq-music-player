@@ -11,24 +11,36 @@ Sprint 5 — Cloudflare / D1 / KV / InfinitePay / Trial
 - [x] KV configurado para assinatura/trial (padrão `sub:{userId}`, nunca no D1)
 - [x] Variáveis de ambiente ativas: `INFINITEPAY_HANDLE`, `APP_BASE_URL` (+ 1 outra, nome a confirmar)
 - [x] Fluxo de cadastro/login com nome, e-mail, senha, CPF
-- [x] Trial (banner exibido após cadastro)
+- [x] Trial (banner exibido após cadastro, agora mostrando preço junto — ver CHANGELOG)
 - [x] Integração de pagamento via InfinitePay
 
 Sprint 6 — Biblioteca Jamendo
 - [x] Aba "Descobrir" com músicas via API Jamendo
 
-## Sprints não iniciadas
+## Sprint em andamento
 
 Sprint 1 — Persistência, remoção de músicas, playlists, correções gerais
-- [ ] Persistência real (FSA API + IndexedDB) — EM ANDAMENTO, ver NEXT_TASK.md
+- [~] Persistência real (FSA API + IndexedDB + Media Session) — **código pronto, aplicação/push/teste ainda não confirmados pelo usuário**
+  - `persistence.js` criado (arquivo novo, isolado)
+  - `PATCH_SCRIPT_JS.md` criado com 4 patches pontuais em `script.js` (usa o bridge `window.PlinqPlayer`, nada reescrito)
+  - 1 linha adicionada em `index.html` (`<script src="persistence.js" defer>`)
+  - Falta: usuário aplicar os patches localmente, dar `git push`, e testar (fechar aba tocando → reabrir → retomar; Media Session no lock screen)
+  - Ver NEXT_TASK.md
 - [ ] Remoção de músicas da playlist
 - [ ] Playlists (múltiplas)
 - [ ] Correções gerais pendentes de identificação
 
-Sprint 2 — Gapless, Crossfade, Sleep Timer, Equalizador, Media Session
+Sprint 2 — Gapless, Crossfade, Sleep Timer, Equalizador, Media Session (Media Session já entra via persistence.js)
 Sprint 3 — Playlists múltiplas, Favoritos, Histórico, Busca, Importação, Exportação
 Sprint 4 — PWA, Manifest, Service Worker, Offline
 Sprint 7 — Otimização, Performance, Testes, Polimento final
+
+## Ajustes menores concluídos (fora de sprint)
+
+- [x] Textos de trial/preço no `premium.js` atualizados e no ar (commit `3f4e572`):
+  - `discover-locked-text` (sem conta) menciona benefício antes do preço
+  - `discover-locked-text` (trial expirado) reforça o preço
+  - Banner de trial agora mostra "R$ 9,90/mês" junto com os dias restantes
 
 ## Pendência crítica (bloqueia considerar Sprint 5/6 "feitas" com confiança total)
 

@@ -1,45 +1,31 @@
 # NEXT_TASK.md
 
-Sprint 1 — Persistência real (local-first)
+## Tarefa imediata — confirmar e testar persistência
 
-## Objetivo
+O código da Sprint 1 (persistência) já foi entregue nesta sessão:
+- `persistence.js` (novo arquivo, raiz do repo)
+- `PATCH_SCRIPT_JS.md` (4 patches pontuais em `script.js`)
+- 1 linha em `index.html`
 
-Usuário não deve precisar re-selecionar arquivos/pastas a cada visita.
-Player deve lembrar faixa, posição e configurações entre sessões.
+Passos que faltam (do usuário, fora desta sessão):
+1. Baixar `persistence.js` e colocar na raiz do repo
+2. Aplicar os 4 patches de `PATCH_SCRIPT_JS.md` no `script.js`
+3. Adicionar `<script src="persistence.js" defer></script>` no `index.html` (logo após `script.js`)
+4. `git add . && git commit -m "Adiciona persistencia local (FSA + IndexedDB + Media Session)" && git push`
+5. Testar em produção:
+   - Reabrir o navegador não deve pedir permissão de novo (quando o navegador permitir)
+   - Fechar aba tocando aos 1:23 de uma faixa, reabrir, deve oferecer retomar em 1:23
+   - Media Session mostrando controles corretos no Android/desktop
+   - Testar fallback em navegador sem FSA (Firefox/Safari) — deve cair no `<input type="file">` normal, sem persistir handle
 
-## Escopo
+**Enquanto o passo 5 não for confirmado, não considerar a Sprint 1 (persistência) concluída.**
 
-1. File System Access API (FSA)
-   - Guardar o handle da pasta/arquivos selecionados (não o arquivo em si)
-   - Reobter acesso sem novo diálogo, exceto quando o navegador exigir permissão
+## Depois disso — próxima tarefa da Sprint 1
 
-2. IndexedDB
-   - Persistir: lista de faixas conhecidas (nome + referência ao handle)
-   - Playlist atual, posição da faixa tocando (segundos), volume, shuffle/repeat
-   - Guardar `FileSystemFileHandle`/`FileSystemDirectoryHandle` diretamente como valor
+Remoção de músicas da playlist (item ainda não iniciado da Sprint 1).
 
-3. "Continuar de onde parei"
-   - Ao abrir o site, oferecer retomar última faixa na posição exata
-
-4. Media Session API
-   - Controles play/pause/next/previous no SO/lock screen/notificação
-   - Metadata: título, artista, capa da faixa atual
-
-## Restrições
+## Restrições (válidas pra qualquer tarefa client-side)
 
 - 100% client-side
 - Sem localStorage/sessionStorage para listas grandes — usar IndexedDB
 - Sem novas dependências externas, sem build step (ver CLAUDE.md)
-
-## Compatibilidade
-
-FSA API não suportada em Firefox nem Safari (iOS).
-Obrigatório: fallback para `<input type="file">` sem persistência de handle
-quando `window.showOpenFilePicker` não existir.
-
-## Critério de conclusão
-
-- Reabrir o navegador não pede permissão de novo (quando o navegador permitir)
-- Fecha aba tocando aos 1:23 de uma faixa, reabre, oferece retomar em 1:23
-- Media Session mostra controles corretos no Android/desktop
-- Fallback funcional testado em navegador sem suporte a FSA

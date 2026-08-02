@@ -16,6 +16,13 @@
    Sabe-se que existem 3 variáveis ativas: `INFINITEPAY_HANDLE`, `APP_BASE_URL`
    e uma terceira ainda não nomeada neste arquivo. Confirmar e documentar.
 
+4. **Persistência (FSA + IndexedDB + Media Session) não confirmada em produção**
+   Código entregue (`persistence.js` + `PATCH_SCRIPT_JS.md` + linha em
+   `index.html`), mas ainda não há confirmação de que o usuário aplicou os
+   patches, deu push, e testou (retomar faixa na posição exata, Media Session
+   no lock screen, fallback sem FSA). Não marcar Sprint 1/persistência como
+   concluída até isso ser confirmado. Ver NEXT_TASK.md.
+
 ## Resolvidos
 
 - Build falhando por pacote `cap` (dependência nativa/node-gyp, pcap.h ausente)
