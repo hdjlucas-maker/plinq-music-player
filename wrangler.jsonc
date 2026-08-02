@@ -1,0 +1,25 @@
+{
+  "name": "plinq-music-player",
+  "compatibility_date": "2026-08-01",
+  "pages_build_output_dir": ".",
+
+  "d1_databases": [
+    {
+      "binding": "PLINQ_BINDING",
+      "database_name": "plinq-db",
+      "database_id": "COLE_AQUI_O_ID_DO_D1_SE_FOR_USAR_WRANGLER_CLI"
+    }
+  ],
+
+  "kv_namespaces": [
+    {
+      "binding": "SUBSCRIPTIONS",
+      "id": "COLE_AQUI_O_ID_DO_KV_DEPOIS_DE_CRIAR"
+    }
+  ]
+
+  // Variáveis de ambiente (AUTH_SECRET, INFINITEPAY_HANDLE, APP_BASE_URL)
+  // NÃO ficam aqui — configure como Secrets/Variáveis no painel do Cloudflare Pages
+  // (Settings > Environment variables) ou via `wrangler pages secret put`.
+  // Ver SETUP-LICENCA.md para o passo a passo completo.
+}
