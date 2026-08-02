@@ -186,7 +186,7 @@
       discoverLocked.classList.remove('hidden');
       discoverContent.classList.add('hidden');
       premiumBanner.classList.add('hidden');
-      discoverLockedText.textContent = 'Ouça mais música — crie uma conta grátis e desbloqueie a biblioteca. 30 dias de teste, depois R$ 9,90/mês.';
+      discoverLockedText.textContent = 'Seu player local continua grátis pra sempre. Crie uma conta grátis pra também ouvir a biblioteca online — 30 dias de teste, depois R$ 9,90/mês.';
       discoverUnlockBtn.textContent = 'Criar conta / Entrar';
       return;
     }
@@ -197,7 +197,7 @@
     if (!subscription || subscription.status === 'expired') {
       discoverLocked.classList.remove('hidden');
       discoverContent.classList.add('hidden');
-      discoverLockedText.textContent = 'Seu teste acabou. Assine por R$ 9,90/mês pra continuar ouvindo mais música.';
+      discoverLockedText.textContent = 'Seu teste da biblioteca online acabou — seu player local continua liberado normalmente. Assine por R$ 9,90/mês pra voltar a ouvir a biblioteca online.';
       discoverUnlockBtn.textContent = 'Assinar agora';
       return;
     }

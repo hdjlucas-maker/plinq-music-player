@@ -5,6 +5,11 @@
 (function () {
   const audioA = document.getElementById('audio-el');
   const audioB = document.getElementById('audio-el-2');
+  // Necessário pra faixas remotas (Jamendo/Descobrir) tocarem com som:
+  // sem isso, uma vez que o elemento é conectado ao Web Audio API (pro
+  // visualizador/crossfade), fontes de outra origem sem CORS ficam mudas.
+  audioA.crossOrigin = 'anonymous';
+  audioB.crossOrigin = 'anonymous';
   const els = [audioA, audioB];
   const playBtn = document.getElementById('play-btn');
   const playIcon = document.getElementById('play-icon');

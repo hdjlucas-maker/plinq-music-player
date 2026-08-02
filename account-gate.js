@@ -39,8 +39,9 @@
       <div class="modal">
         <p style="margin:0 0 16px;line-height:1.5;">
           Crie uma conta grátis pra usar o Plinq.<br>
-          Sem anúncios. O cadastro é grátis — só a biblioteca Descobrir tem
-          assinatura opcional depois dos 30 dias de teste.
+          O cadastro é grátis e o player local (suas músicas, sem anúncio)
+          continua grátis pra sempre. Só a biblioteca "Ouvir Online" tem
+          30 dias de teste grátis e depois assinatura opcional.
         </p>
         <button class="add-files-btn" id="account-gate-btn" type="button">Criar conta grátis</button>
       </div>
