@@ -7,14 +7,14 @@
     {
       "binding": "PLINQ_BINDING",
       "database_name": "plinq-db",
-      "database_id": "COLE_AQUI_O_ID_DO_D1_SE_FOR_USAR_WRANGLER_CLI"
+      "database_id": "07611a4d-1f87-4570-be79-0e2900708344"
     }
   ],
 
   "kv_namespaces": [
     {
       "binding": "SUBSCRIPTIONS",
-      "id": "COLE_AQUI_O_ID_DO_KV_DEPOIS_DE_CRIAR"
+      "id": "43bff39aca584401951aa0ba6a31b51b"
     }
   ]
 
