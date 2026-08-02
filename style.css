@@ -889,7 +889,7 @@ label.add-files-btn {
     max-width: 960px;
   }
 
-  #tab-player {
+  #tab-player.active {
     display: flex;
     align-items: flex-start;
     gap: 0;
