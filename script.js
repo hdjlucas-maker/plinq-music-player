@@ -1,5 +1,5 @@
 // ==========================================================
-// Plinq - player de música local (sem anúncios, sem login)
+// Plinq - player de música  (sem anúncios,)
 // ==========================================================
 
 (function () {
@@ -309,6 +309,7 @@
 
     renderPlaylist();
     scrollActiveIntoView();
+    updateMediaSessionMetadata(track);
 
     if (autoPlay) {
       playAudio();
@@ -541,6 +542,7 @@
     pendingNextIndex = null;
     renderPlaylist();
     scrollActiveIntoView();
+    updateMediaSessionMetadata(tracks[trackIndex]);
   }
 
   function preloadGapless() {
@@ -659,6 +661,7 @@
     if (el.duration) {
       progressFill.style.width = (el.currentTime / el.duration * 100) + '%';
     }
+    updateMediaSessionPosition(el);
     maybePrepareNext(el);
   }
 
@@ -700,6 +703,40 @@
     }
   });
 
+  // ---- Media Session API (controles no SO / lock screen / notificação) ----
+
+  function setupMediaSession() {
+    if (!('mediaSession' in navigator)) return;
+    navigator.mediaSession.setActionHandler('play', () => playBtn.click());
+    navigator.mediaSession.setActionHandler('pause', () => playBtn.click());
+    navigator.mediaSession.setActionHandler('previoustrack', () => prevBtn.click());
+    navigator.mediaSession.setActionHandler('nexttrack', () => nextBtn.click());
+    navigator.mediaSession.setActionHandler('seekto', (details) => {
+      if (details.seekTime != null) getActive().currentTime = details.seekTime;
+    });
+  }
+
+  function updateMediaSessionMetadata(track) {
+    if (!('mediaSession' in navigator) || !track) return;
+    navigator.mediaSession.metadata = new MediaMetadata({
+      title: track.name,
+      artist: 'Plinq',
+    });
+  }
+
+  function updateMediaSessionPosition(el) {
+    if (!('mediaSession' in navigator) || !('setPositionState' in navigator.mediaSession)) return;
+    if (!el.duration || !isFinite(el.duration)) return;
+    try {
+      navigator.mediaSession.setPositionState({
+        duration: el.duration,
+        playbackRate: el.playbackRate,
+        position: el.currentTime,
+      });
+    } catch (e) {}
+  }
+
+  setupMediaSession();
   renderPlaylist();
 
   // Public bridge used by premium.js (Descobrir tab) to queue remote
@@ -713,6 +750,54 @@
       });
       renderPlaylist();
       loadTrack(base + (startIndex || 0), true);
+    },
+
+    // Usado pelo persistence.js para adicionar arquivos vindos de
+    // File System Access API (mesma validação/ordenação de sempre).
+    addFiles(fileList) {
+      addFilesToPlaylist(fileList);
+    },
+
+    // Usado pelo persistence.js para salvar o estado a cada poucos
+    // segundos e ao fechar a aba.
+    getState() {
+      if (currentIndex === -1 || !tracks[currentIndex]) return null;
+      return {
+        trackName: tracks[currentIndex].name,
+        position: getActive().currentTime || 0,
+        volume: parseFloat(volumeSlider.value),
+        shuffle: shuffleOn,
+        repeat: repeatOn,
+      };
+    },
+
+    // Usado pelo persistence.js para retomar a sessão anterior.
+    restoreState(state) {
+      if (!state) return;
+      if (typeof state.volume === 'number') {
+        volumeSlider.value = String(state.volume);
+        els.forEach(el => { el.volume = state.volume; });
+      }
+      if (state.shuffle) {
+        shuffleOn = true;
+        shuffleBtn.classList.add('on');
+      }
+      if (state.repeat) {
+        repeatOn = true;
+        repeatBtn.classList.add('on');
+      }
+      if (state.trackName) {
+        const idx = tracks.findIndex(t => t.name === state.trackName);
+        if (idx !== -1) {
+          loadTrack(idx, false);
+          const el = getActive();
+          const seek = () => {
+            el.currentTime = state.position || 0;
+            el.removeEventListener('loadedmetadata', seek);
+          };
+          el.addEventListener('loadedmetadata', seek);
+        }
+      }
     },
   };
 })();
