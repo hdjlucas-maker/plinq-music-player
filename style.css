@@ -631,7 +631,7 @@ label.add-files-btn {
   list-style: none;
   margin: 0;
   padding: 0 6px 12px;
-  max-height: 320px;
+  max-height: min(45vh, 380px);
   overflow-y: auto;
 }
 
@@ -801,4 +801,77 @@ label.add-files-btn {
 @media (max-width: 380px) {
   .ctrl-btn { width: 38px; height: 36px; }
   .ctrl-btn.play { width: 50px; height: 44px; }
+}
+
+/* ============================================================
+   Responsivo — tablet e desktop
+   Mobile (padrão acima) continua como card único de até 420px.
+   ============================================================ */
+
+/* Tablet: card mais largo, playlist com mais altura visível */
+@media (min-width: 700px) {
+  body { padding: 24px; }
+
+  .app {
+    max-width: 620px;
+  }
+
+  .genre-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  .playlist {
+    max-height: min(50vh, 460px);
+  }
+
+  #genre-track-list {
+    max-height: min(55vh, 500px);
+  }
+}
+
+/* Desktop: duas colunas — player fixo à esquerda, playlist alta à direita */
+@media (min-width: 1000px) {
+  body { padding: 32px; }
+
+  .app {
+    max-width: 960px;
+  }
+
+  #tab-player {
+    display: flex;
+    align-items: flex-start;
+    gap: 0;
+  }
+
+  .player-main {
+    flex: 0 0 340px;
+    border-right: 1px solid var(--border);
+  }
+
+  .playlist-section {
+    flex: 1;
+    min-width: 0;
+    border-top: none;
+  }
+
+  .playlist {
+    max-height: min(64vh, 620px);
+  }
+
+  .genre-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+
+  #genre-track-list {
+    max-height: min(64vh, 620px);
+  }
+
+  .footer-section {
+    text-align: center;
+  }
+}
+
+/* Telas bem largas: um pouco mais de respiro, sem esticar demais */
+@media (min-width: 1400px) {
+  .app { max-width: 1080px; }
 }
