@@ -296,6 +296,58 @@ body {
 .extra-menu button:hover { background: rgba(63,231,255,0.08); color: var(--accent); }
 .extra-menu button + button { border-top: 1px solid var(--border); }
 
+.eq-menu {
+  padding: 14px 10px 10px;
+  align-items: stretch;
+}
+
+.eq-bands {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  height: 100px;
+}
+
+.eq-band {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+}
+
+.eq-band input[type="range"] {
+  writing-mode: vertical-lr;
+  direction: rtl;
+  appearance: slider-vertical;
+  -webkit-appearance: slider-vertical;
+  width: 4px;
+  height: 80px;
+  accent-color: var(--accent);
+  background: transparent;
+  cursor: pointer;
+}
+
+.eq-band span {
+  font-size: 10px;
+  color: var(--text-mute);
+  font-family: var(--font-display);
+}
+
+.eq-reset-btn {
+  margin-top: 10px;
+  background: var(--bg-panel-2);
+  border: 1px solid var(--border);
+  color: var(--text-mute);
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 11px;
+  cursor: pointer;
+  align-self: center;
+}
+
+.eq-reset-btn:hover { color: var(--text-main); border-color: var(--accent); }
+
 .hidden { display: none !important; }
 
 /* Main tabs (Player / Descobrir) */

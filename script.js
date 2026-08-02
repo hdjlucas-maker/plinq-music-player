@@ -70,6 +70,25 @@
   let crossfadeDuration = parseInt(localStorage.getItem('plinq_crossfade') || '0', 10);
   if (![0, 3, 6, 10].includes(crossfadeDuration)) crossfadeDuration = 0;
 
+  // Equalizador: 5 bandas peaking, -12dB a +12dB, aplicadas no sinal já
+  // somado (masterGain) — vale tanto pro áudio A quanto B, inclusive
+  // durante crossfade.
+  const EQ_BANDS = [60, 230, 910, 3600, 14000];
+  let eqValues = loadEqValues();
+  let eqFilters = null; // criados só quando o audioCtx existe
+
+  function loadEqValues() {
+    try {
+      const saved = JSON.parse(localStorage.getItem('plinq_eq') || 'null');
+      if (Array.isArray(saved) && saved.length === EQ_BANDS.length) return saved;
+    } catch (e) {}
+    return EQ_BANDS.map(() => 0);
+  }
+
+  function saveEqValues() {
+    localStorage.setItem('plinq_eq', JSON.stringify(eqValues));
+  }
+
   // Sleep timer state
   let sleepTimeoutId = null;
   let sleepLabelInterval = null;
@@ -106,7 +125,19 @@
 
       masterGain = audioCtx.createGain();
       masterGain.gain.value = 1;
-      masterGain.connect(analyser);
+
+      // Cadeia de EQ em série: masterGain -> filtro1 -> ... -> filtro5 -> analyser
+      eqFilters = EQ_BANDS.map((freq, i) => {
+        const f = audioCtx.createBiquadFilter();
+        f.type = 'peaking';
+        f.frequency.value = freq;
+        f.Q.value = 1;
+        f.gain.value = eqValues[i] || 0;
+        return f;
+      });
+      let node = masterGain;
+      eqFilters.forEach(f => { node.connect(f); node = f; });
+      node.connect(analyser);
       analyser.connect(audioCtx.destination);
 
       // Each <audio> element gets its own source -> gain node, both summed
@@ -642,6 +673,49 @@
   crossfadeLabelEl.textContent = 'Crossfade: ' + (crossfadeDuration === 0 ? 'Desligado' : crossfadeDuration + 's');
   crossfadeBtn.classList.toggle('on', crossfadeDuration > 0);
 
+  // ---- Equalizador ----
+
+  const eqBtn = document.getElementById('eq-btn');
+  const eqMenu = document.getElementById('eq-menu');
+  const eqLabelEl = document.getElementById('eq-label');
+  const eqResetBtn = document.getElementById('eq-reset-btn');
+  const eqSliders = eqMenu ? Array.from(eqMenu.querySelectorAll('input[type="range"]')) : [];
+
+  function eqIsFlat() { return eqValues.every(v => v === 0); }
+
+  function updateEqLabel() {
+    eqLabelEl.textContent = 'Equalizador' + (eqIsFlat() ? '' : ' (ativo)');
+    eqBtn.classList.toggle('on', !eqIsFlat());
+  }
+
+  function setEqBand(i, db) {
+    eqValues[i] = db;
+    if (eqFilters && eqFilters[i]) eqFilters[i].gain.value = db;
+    saveEqValues();
+    updateEqLabel();
+  }
+
+  eqSliders.forEach((slider, i) => {
+    slider.value = String(eqValues[i] || 0);
+    slider.addEventListener('input', () => setEqBand(i, parseFloat(slider.value)));
+  });
+
+  if (eqResetBtn) {
+    eqResetBtn.addEventListener('click', () => {
+      eqValues = EQ_BANDS.map(() => 0);
+      eqSliders.forEach(s => { s.value = '0'; });
+      if (eqFilters) eqFilters.forEach(f => { f.gain.value = 0; });
+      saveEqValues();
+      updateEqLabel();
+    });
+  }
+
+  if (eqBtn && eqMenu) {
+    togglePopover(eqBtn, eqMenu);
+    menuStopPropagation(eqMenu);
+  }
+  updateEqLabel();
+
   // ---- Automatic transition engine (gapless preload / crossfade) ----
 
   // Instantly swaps which element is "active" — used both by the gapless
@@ -912,6 +986,30 @@
           el.addEventListener('loadedmetadata', seek);
         }
       }
+    },
+
+    // Usado pelo playlists.js para salvar a playlist ativa antes de trocar.
+    // Retorna { file } (não a url — url de blob local é revogada na troca).
+    getTracksSnapshot() {
+      return tracks.map(t => ({ file: t.file, url: t.url, name: t.name, duration: t.duration }));
+    },
+
+    // Usado pelo playlists.js para carregar outra playlist no player.
+    // Recria as blob URLs dos arquivos locais (as antigas já foram revogadas).
+    replaceTracks(newTracks) {
+      tracks.forEach(t => { if (t.file) URL.revokeObjectURL(t.url); });
+      resetInactive();
+      tracks = (newTracks || []).map(t => {
+        if (t.file) return { file: t.file, url: URL.createObjectURL(t.file), name: t.name, duration: t.duration };
+        return { file: null, url: t.url, name: t.name, duration: t.duration };
+      });
+      resetPlayerToEmpty();
+      renderPlaylist();
+    },
+
+    // Usado pelo playlists.js pra sair do modo de seleção ao trocar de playlist.
+    exitSelectionMode() {
+      setSelectionMode(false);
     },
   };
 })();

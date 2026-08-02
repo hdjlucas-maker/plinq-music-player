@@ -71,6 +71,22 @@
       </div>
     </div>
     <div class="extra-control">
+      <button class="extra-btn" id="eq-btn" type="button" aria-haspopup="true" aria-expanded="false">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 21V14M4 10V3M12 21V12M12 8V3M20 21V16M20 12V3M1 14h6M9 8h6M17 16h6"/></svg>
+        <span id="eq-label">Equalizador</span>
+      </button>
+      <div class="extra-menu eq-menu" id="eq-menu">
+        <div class="eq-bands">
+          <div class="eq-band"><input type="range" min="-12" max="12" step="1" value="0" aria-label="60Hz"><span>60</span></div>
+          <div class="eq-band"><input type="range" min="-12" max="12" step="1" value="0" aria-label="230Hz"><span>230</span></div>
+          <div class="eq-band"><input type="range" min="-12" max="12" step="1" value="0" aria-label="910Hz"><span>910</span></div>
+          <div class="eq-band"><input type="range" min="-12" max="12" step="1" value="0" aria-label="3.6kHz"><span>3.6k</span></div>
+          <div class="eq-band"><input type="range" min="-12" max="12" step="1" value="0" aria-label="14kHz"><span>14k</span></div>
+        </div>
+        <button type="button" id="eq-reset-btn" class="eq-reset-btn">Reset</button>
+      </div>
+    </div>
+    <div class="extra-control">
       <button class="extra-btn" id="sleep-btn" type="button" aria-haspopup="true" aria-expanded="false">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg>
         <span id="sleep-label">Sleep Timer</span>
@@ -198,6 +214,7 @@
 
 <script src="script.js"></script>
 <script src="persistence.js" defer></script>
+<script src="playlists.js" defer></script>
 <script src="account-gate.js" defer></script>
 <script src="premium.js"></script>
 </body>
