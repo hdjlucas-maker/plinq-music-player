@@ -165,7 +165,7 @@
     premiumBanner.className = 'premium-banner ' + subscription.status;
 
     if (subscription.status === 'trial') {
-      premiumBanner.innerHTML = `<span>Teste grátis: ${subscription.daysLeft} dia(s) restante(s)</span>`;
+      premiumBanner.innerHTML = `<span>Teste grátis: ${subscription.daysLeft} dia(s) restante(s) — depois R$ 9,90/mês</span>`;
     } else if (subscription.status === 'active') {
       premiumBanner.innerHTML = `<span>Plinq Premium ativo — obrigado! ✨</span>`;
     } else {
@@ -184,7 +184,7 @@
       discoverLocked.classList.remove('hidden');
       discoverContent.classList.add('hidden');
       premiumBanner.classList.add('hidden');
-      discoverLockedText.textContent = 'Crie uma conta grátis para desbloquear a biblioteca Descobrir (30 dias de teste, depois R$ 9,90/mês).';
+      discoverLockedText.textContent = 'Ouça mais música — crie uma conta grátis e desbloqueie a biblioteca. 30 dias de teste, depois R$ 9,90/mês.';
       discoverUnlockBtn.textContent = 'Criar conta / Entrar';
       return;
     }
@@ -195,7 +195,7 @@
     if (!subscription || subscription.status === 'expired') {
       discoverLocked.classList.remove('hidden');
       discoverContent.classList.add('hidden');
-      discoverLockedText.textContent = 'Seu período de teste acabou. Assine por R$ 9,90/mês pra continuar ouvindo a biblioteca Descobrir.';
+      discoverLockedText.textContent = 'Seu teste acabou. Assine por R$ 9,90/mês pra continuar ouvindo mais música.';
       discoverUnlockBtn.textContent = 'Assinar agora';
       return;
     }
