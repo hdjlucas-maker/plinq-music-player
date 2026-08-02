@@ -102,6 +102,7 @@
       const data = await res.json();
       if (!res.ok) { loginError.textContent = data.error || 'Erro ao entrar.'; return; }
       currentUser = data;
+      window.dispatchEvent(new CustomEvent('plinq:auth-changed'));
       closeAuthModal();
       await refreshDiscoverTab();
     } catch (err) {
@@ -127,6 +128,7 @@
       const data = await res.json();
       if (!res.ok) { registerError.textContent = data.error || 'Erro ao criar conta.'; return; }
       currentUser = data;
+      window.dispatchEvent(new CustomEvent('plinq:auth-changed'));
       closeAuthModal();
       await refreshDiscoverTab();
     } catch (err) {
@@ -288,6 +290,13 @@
       '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
     }[c]));
   }
+
+  // Exposto pro account-gate.js conseguir checar login e abrir o mesmo
+  // modal de conta, sem duplicar lógica de auth.
+  window.PlinqAuth = {
+    openAuthModal,
+    isLoggedIn: () => !!currentUser,
+  };
 
   // Handle redirect back from InfinitePay checkout (?paid=1)
   if (new URLSearchParams(window.location.search).get('paid') === '1') {
