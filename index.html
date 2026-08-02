@@ -87,7 +87,10 @@
 
   <div class="playlist-section">
     <div class="playlist-header">
-      <h2>Playlist</h2>
+      <div class="playlist-header-row">
+        <h2>Playlist</h2>
+        <button class="select-toggle-btn" id="select-mode-btn" type="button">Selecionar</button>
+      </div>
       <div class="add-buttons-row">
         <label class="add-files-btn" for="file-input" id="add-files-btn">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M12 5v14M5 12h14"/></svg>
@@ -100,6 +103,18 @@
       </div>
       <input type="file" id="file-input" accept="audio/*" multiple>
       <input type="file" id="folder-input" webkitdirectory multiple>
+
+      <div class="selection-toolbar hidden" id="selection-toolbar">
+        <label class="select-all-row">
+          <input type="checkbox" id="select-all-checkbox">
+          <span id="selection-count-label">0 selecionada(s)</span>
+        </label>
+        <div class="selection-actions">
+          <button type="button" id="delete-selected-btn" class="danger-btn" disabled>Apagar selecionadas</button>
+          <button type="button" id="delete-all-btn" class="danger-btn">Apagar todas</button>
+          <button type="button" id="cancel-select-btn" class="cancel-btn">Cancelar</button>
+        </div>
+      </div>
     </div>
 
     <ul class="playlist" id="playlist">

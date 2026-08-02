@@ -47,6 +47,18 @@
   let repeatOn = false;
   let shuffleHistory = [];
 
+  // Seleção múltipla / apagar em lote
+  let selectionMode = false;
+  let selectedIndices = new Set();
+
+  const selectModeBtn = document.getElementById('select-mode-btn');
+  const selectionToolbar = document.getElementById('selection-toolbar');
+  const selectAllCheckbox = document.getElementById('select-all-checkbox');
+  const selectionCountLabel = document.getElementById('selection-count-label');
+  const deleteSelectedBtn = document.getElementById('delete-selected-btn');
+  const deleteAllBtn = document.getElementById('delete-all-btn');
+  const cancelSelectBtn = document.getElementById('cancel-select-btn');
+
   // Dual-element playback engine (gapless preload + crossfade)
   let activeIdx = 0;
   let gains = null; // [gainA, gainB], set up once Web Audio graph exists
@@ -206,11 +218,25 @@
 
     tracks.forEach((track, i) => {
       const li = document.createElement('li');
-      li.className = i === currentIndex ? 'active' : '';
+      const classes = [];
+      if (i === currentIndex) classes.push('active');
+      if (selectionMode && selectedIndices.has(i)) classes.push('selected');
+      li.className = classes.join(' ');
 
-      const indexEl = document.createElement('span');
-      indexEl.className = 'track-index';
-      indexEl.textContent = String(i + 1).padStart(2, '0');
+      if (selectionMode) {
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.className = 'track-checkbox';
+        checkbox.checked = selectedIndices.has(i);
+        checkbox.addEventListener('click', (ev) => ev.stopPropagation());
+        checkbox.addEventListener('change', () => toggleTrackSelection(i));
+        li.appendChild(checkbox);
+      } else {
+        const indexEl = document.createElement('span');
+        indexEl.className = 'track-index';
+        indexEl.textContent = String(i + 1).padStart(2, '0');
+        li.appendChild(indexEl);
+      }
 
       const infoEl = document.createElement('div');
       infoEl.className = 'track-info';
@@ -223,21 +249,28 @@
       durEl.className = 't-dur';
       durEl.textContent = track.duration ? formatTime(track.duration) : '--:--';
 
-      const removeBtn = document.createElement('button');
-      removeBtn.className = 'remove-btn';
-      removeBtn.setAttribute('aria-label', 'Remover da playlist');
-      removeBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>';
-      removeBtn.addEventListener('click', (ev) => {
-        ev.stopPropagation();
-        removeTrack(i);
-      });
-
-      li.appendChild(indexEl);
       li.appendChild(infoEl);
       li.appendChild(durEl);
-      li.appendChild(removeBtn);
 
-      li.addEventListener('click', () => loadTrack(i, true));
+      if (!selectionMode) {
+        const removeBtn = document.createElement('button');
+        removeBtn.className = 'remove-btn';
+        removeBtn.setAttribute('aria-label', 'Remover da playlist');
+        removeBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>';
+        removeBtn.addEventListener('click', (ev) => {
+          ev.stopPropagation();
+          removeTrack(i);
+        });
+        li.appendChild(removeBtn);
+      }
+
+      li.addEventListener('click', () => {
+        if (selectionMode) {
+          toggleTrackSelection(i);
+        } else {
+          loadTrack(i, true);
+        }
+      });
 
       playlistEl.appendChild(li);
     });
@@ -245,32 +278,108 @@
     trackCounterEl.textContent = tracks.length === 0
       ? '0 / 0'
       : `${currentIndex + 1} / ${tracks.length}`;
+
+    updateSelectionUI();
   }
 
-  function removeTrack(index) {
-    const wasCurrent = index === currentIndex;
-    URL.revokeObjectURL(tracks[index].url);
-    tracks.splice(index, 1);
-    resetInactive(); // any preloaded/crossfading "next" index is now stale
+  // ---- Seleção múltipla / apagar em lote ----
+
+  function setSelectionMode(on) {
+    selectionMode = on;
+    if (!on) selectedIndices.clear();
+    selectModeBtn.textContent = on ? 'Cancelar' : 'Selecionar';
+    selectModeBtn.classList.toggle('on', on);
+    selectionToolbar.classList.toggle('hidden', !on);
+    renderPlaylist();
+  }
+
+  function toggleTrackSelection(i) {
+    if (selectedIndices.has(i)) selectedIndices.delete(i);
+    else selectedIndices.add(i);
+    renderPlaylist();
+  }
+
+  function updateSelectionUI() {
+    const n = selectedIndices.size;
+    selectionCountLabel.textContent = n + ' selecionada(s)';
+    deleteSelectedBtn.disabled = n === 0;
+    selectAllCheckbox.checked = tracks.length > 0 && n === tracks.length;
+  }
+
+  selectModeBtn.addEventListener('click', () => setSelectionMode(!selectionMode));
+  cancelSelectBtn.addEventListener('click', () => setSelectionMode(false));
+
+  selectAllCheckbox.addEventListener('change', () => {
+    selectedIndices = selectAllCheckbox.checked
+      ? new Set(tracks.map((_, i) => i))
+      : new Set();
+    renderPlaylist();
+  });
+
+  deleteSelectedBtn.addEventListener('click', () => {
+    if (selectedIndices.size === 0) return;
+    const n = selectedIndices.size;
+    if (!confirm(`Apagar ${n} música(s) selecionada(s) da playlist?`)) return;
+    removeTracksBulk(Array.from(selectedIndices));
+    setSelectionMode(false);
+  });
+
+  deleteAllBtn.addEventListener('click', () => {
+    if (tracks.length === 0) return;
+    if (!confirm('Apagar TODAS as músicas da playlist? Essa ação não pode ser desfeita.')) return;
+    deleteAllTracks();
+  });
+
+  function resetPlayerToEmpty() {
+    currentIndex = -1;
+    getActive().pause();
+    getActive().removeAttribute('src');
+    trackNameEl.textContent = 'Nenhuma música carregada';
+    trackNameEl.classList.add('empty');
+    setPlayingState(false);
+    progressFill.style.width = '0%';
+    currentTimeEl.textContent = '00:00';
+    durationTimeEl.textContent = '00:00';
+  }
+
+  // Remove um ou vários índices de uma vez. Localiza a faixa que estava
+  // tocando pela referência do objeto (não pelo índice antigo), porque
+  // remover várias faixas de uma vez desloca os índices restantes.
+  function removeTracksBulk(indices) {
+    const toRemove = new Set(indices);
+    const currentTrackObj = currentIndex !== -1 ? tracks[currentIndex] : null;
+
+    tracks.filter((t, i) => toRemove.has(i)).forEach(t => URL.revokeObjectURL(t.url));
+    tracks = tracks.filter((t, i) => !toRemove.has(i));
+
+    resetInactive();
 
     if (tracks.length === 0) {
-      currentIndex = -1;
-      getActive().pause();
-      getActive().removeAttribute('src');
-      trackNameEl.textContent = 'Nenhuma música carregada';
-      trackNameEl.classList.add('empty');
-      setPlayingState(false);
-      progressFill.style.width = '0%';
-      currentTimeEl.textContent = '00:00';
-      durationTimeEl.textContent = '00:00';
-    } else if (wasCurrent) {
-      const newIndex = Math.min(index, tracks.length - 1);
-      loadTrack(newIndex, isPlaying);
-    } else if (index < currentIndex) {
-      currentIndex--;
+      resetPlayerToEmpty();
+    } else if (currentTrackObj) {
+      const newIndex = tracks.indexOf(currentTrackObj);
+      if (newIndex === -1) {
+        // a faixa que estava tocando foi apagada
+        resetPlayerToEmpty();
+      } else {
+        // mesma faixa, só o índice mudou — sem precisar recarregar o áudio
+        currentIndex = newIndex;
+      }
     }
 
     renderPlaylist();
+  }
+
+  function deleteAllTracks() {
+    tracks.forEach(t => URL.revokeObjectURL(t.url));
+    tracks = [];
+    resetInactive();
+    resetPlayerToEmpty();
+    renderPlaylist();
+  }
+
+  function removeTrack(index) {
+    removeTracksBulk([index]);
   }
 
   // Stops/clears the inactive element and cancels any pending gapless
