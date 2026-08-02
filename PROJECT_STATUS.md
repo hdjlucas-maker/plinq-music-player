@@ -42,6 +42,16 @@ Sprint 7 — Otimização, Performance, Testes, Polimento final
   - `discover-locked-text` (trial expirado) reforça o preço
   - Banner de trial agora mostra "R$ 9,90/mês" junto com os dias restantes
 
+## Ajustes menores em andamento (fora de sprint)
+
+- [~] Layout responsivo real (celular / tablet / desktop) — **código pronto, push e teste ainda não confirmados pelo usuário**
+  - Novo wrapper `player-main` envolvendo LCD + controles + volume + extras (permite 2 colunas no desktop sem reescrever nada)
+  - Breakpoints adicionados: tablet (700px+, card 620px, gêneros 3 colunas) e desktop (1000px+, layout 2 colunas: player fixo à esquerda, playlist à direita) e telas largas (1400px+)
+  - Playlist do celular passou de altura fixa (320px) para altura relativa à viewport (até 45%); no desktop chega a 64% da altura da tela
+  - `index.html` e `style.css` alterados; `script.js` não foi tocado
+  - Falta: usuário substituir os 2 arquivos, dar `git push`, e testar redimensionando a janela (ou DevTools) nos 3 tamanhos
+  - Ver NEXT_TASK.md
+
 ## Pendência crítica (bloqueia considerar Sprint 5/6 "feitas" com confiança total)
 
 Teste de ponta a ponta em produção nunca foi confirmado:

@@ -1,5 +1,21 @@
 # Changelog
 
+## Não lançado — Layout responsivo (desktop/tablet/celular)
+- Envolve LCD + controles + volume + extras num wrapper `player-main` em
+  `index.html`, permitindo alternar pra 2 colunas no desktop sem reescrever
+  nada existente
+- Novos breakpoints em `style.css`:
+  - Celular (até 699px): igual antes, mas playlist com altura relativa à
+    viewport (~45%) em vez de 320px fixo
+  - Tablet (700px+): card 620px, gêneros do "Ouvir Online" em 3 colunas,
+    playlist mais alta
+  - Desktop (1000px+): 2 colunas — player fixo à esquerda, playlist até 64%
+    da altura da tela à direita, gêneros em 4 colunas
+  - Telas largas (1400px+): card mais largo, sem esticar demais
+- `script.js` não foi alterado
+- **Status:** código pronto, aguardando substituição dos arquivos, push e
+  teste em produção
+
 ## Não lançado — Sprint 1 (persistência)
 - Cria `persistence.js`: FSA API (guarda handle da pasta/arquivos) + IndexedDB
   (faixas, playlist atual, posição, volume, shuffle/repeat) + banner

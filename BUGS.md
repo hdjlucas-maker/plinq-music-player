@@ -23,6 +23,12 @@
    no lock screen, fallback sem FSA). Não marcar Sprint 1/persistência como
    concluída até isso ser confirmado. Ver NEXT_TASK.md.
 
+5. **Layout responsivo (desktop 2 colunas) não confirmado em produção**
+   Código entregue (`index.html` com wrapper `player-main` + `style.css` com
+   breakpoints tablet/desktop/telas largas), mas ainda não há confirmação de
+   que o usuário substituiu os arquivos, deu push, e testou nos 3 tamanhos de
+   tela. Não marcar como concluído até isso ser confirmado. Ver NEXT_TASK.md.
+
 ## Resolvidos
 
 - Build falhando por pacote `cap` (dependência nativa/node-gyp, pcap.h ausente)

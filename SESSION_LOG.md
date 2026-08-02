@@ -37,7 +37,29 @@ Não feito / pendente:
   posição exata; Media Session no lock screen; fallback sem FSA no Firefox/Safari)
 - Teste ponta a ponta geral (criar conta → Jamendo → pagamento) — ver BUGS.md #1
 
+## 2026-08-02 (sessão 3)
+
+Feito:
+- Layout responsivo real (celular / tablet / desktop), fora de sprint:
+  - Envolvido LCD + controles + volume + extras num wrapper `player-main` em
+    `index.html`
+  - Breakpoints adicionados em `style.css`: tablet (700px+, card 620px,
+    gêneros 3 colunas), desktop (1000px+, 2 colunas: player fixo à esquerda,
+    playlist até 64% da altura da tela à direita, gêneros 4 colunas), telas
+    largas (1400px+)
+  - Playlist do celular passou de altura fixa (320px) para altura relativa à
+    viewport (~45%)
+  - Sintaxe conferida (chaves CSS e divs HTML balanceados) antes de entregar
+  - `script.js` não foi tocado
+- Entregues os arquivos completos `index.html` e `style.css`
+
+Não feito / pendente:
+- Usuário ainda não confirmou ter substituído os arquivos, dado push, e
+  testado nos 3 tamanhos de tela (ver NEXT_TASK.md tarefa 2)
+- Persistência (sessão 2) segue pendente de confirmação também
+- Teste ponta a ponta geral — ver BUGS.md #1
+
 Próxima sessão deve começar por: ler PROJECT_STATUS.md → NEXT_TASK.md →
-BUGS.md → este arquivo. Primeiro confirmar se a persistência foi aplicada e
-testada (NEXT_TASK.md) antes de partir para a próxima feature (remoção de
-músicas / playlists).
+BUGS.md → este arquivo. Primeiro confirmar se a persistência e o layout
+responsivo foram aplicados e testados antes de partir para a próxima feature
+(remoção de músicas / playlists).
