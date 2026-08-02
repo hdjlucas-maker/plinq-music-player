@@ -1,28 +1,32 @@
 Sessão
-28
+29
 
 Data
 01/08/2026
 
 Implementado
-✔ Gapless real (preload silencioso, dois elementos <audio>)
-✔ Crossfade (0/3/6/10s via GainNode, fade linear)
-✔ Sleep Timer (15/30/45/60min + "ao fim da música", fade-out de 3-5s)
-✔ Fix confirmado: botão remover invisível em touch (mobile)
+✔ Sistema Premium completo: functions/_lib/{auth,cpf,getSession}.js,
+  functions/api/{auth-register,auth-login,auth-logout,auth-me,create-checkout,
+  payment-webhook,subscription-status}.js, db/schema.sql, wrangler.jsonc
+✔ premium.js: modal login/registro (com CPF), aba Descobrir, grid de 12 gêneros,
+  integração Jamendo (client_id a20d899c, sem expor client_secret)
+✔ index.html/style.css: tabs Player/Descobrir, modal de auth, banner de assinatura,
+  grid de gêneros, footer atualizado ("Criado por lucasdev")
+✔ script.js: exporta window.PlinqPlayer.playRemoteTracks() pra integrar Jamendo
+  ao player existente sem duplicar lógica de reprodução
 
 Arquivos
-script.js, index.html, style.css
+functions/**, db/schema.sql, wrangler.jsonc, premium.js, index.html, style.css,
+script.js, SETUP-LICENCA.md
 
 Bugs
-Nenhum bug novo introduzido conhecido — testes manuais em browser real ainda pendentes
-(especialmente crossfade em Firefox/Safari, que não suportam a mesma implementação de
-Web Audio de forma idêntica ao Chrome).
+Nenhum bug de sintaxe (todos os arquivos JS validados). Não testado em produção
+real — depende do setup de Cloudflare (D1/KV/Pages) que só o usuário pode fazer.
 
 Pendências
-- Testar em dispositivo real (mobile) o Sleep Timer e o fix do botão remover
-- Persistência real, Media Session, Premium, Jamendo — nenhum implementado ainda,
-  apesar de sessões anteriores terem descrito essas implementações (nunca foram
-  commitadas no repositório real, confirmado por git log/diff nesta sessão)
+- Rodar SETUP-LICENCA.md
+- Testar fluxo completo em produção
+- Persistência real, Media Session, Equalizador, Playlists múltiplas, PWA
 
 Próxima sessão
-A definir com o usuário (ver NEXT_TASK.md)
+Ver NEXT_TASK.md

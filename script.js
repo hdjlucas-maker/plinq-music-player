@@ -701,6 +701,20 @@
   });
 
   renderPlaylist();
+
+  // Public bridge used by premium.js (Descobrir tab) to queue remote
+  // (Jamendo) tracks into this same player, switching tabs back to Player.
+  window.PlinqPlayer = {
+    playRemoteTracks(remoteTracks, startIndex) {
+      if (!Array.isArray(remoteTracks) || remoteTracks.length === 0) return;
+      const base = tracks.length;
+      remoteTracks.forEach(rt => {
+        tracks.push({ file: null, url: rt.url, name: rt.name, duration: rt.duration || 0 });
+      });
+      renderPlaylist();
+      loadTrack(base + (startIndex || 0), true);
+    },
+  };
 })();
 
 

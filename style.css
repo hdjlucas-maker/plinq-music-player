@@ -296,6 +296,178 @@ body {
 .extra-menu button:hover { background: rgba(63,231,255,0.08); color: var(--accent); }
 .extra-menu button + button { border-top: 1px solid var(--border); }
 
+.hidden { display: none !important; }
+
+/* Main tabs (Player / Descobrir) */
+.main-tabs {
+  display: flex;
+  gap: 4px;
+  padding: 12px 18px 0;
+}
+
+.main-tab {
+  flex: 1;
+  background: none;
+  border: 1px solid var(--border);
+  color: var(--text-mute);
+  padding: 8px 0;
+  border-radius: 7px 7px 0 0;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  border-bottom: none;
+}
+
+.main-tab.active {
+  color: var(--accent);
+  background: var(--bg-panel-2);
+  border-color: var(--border);
+}
+
+.tab-panel { display: none; }
+.tab-panel.active { display: block; }
+
+/* Premium banner */
+.premium-banner {
+  margin: 14px 18px 0;
+  padding: 10px 12px;
+  border-radius: 8px;
+  font-size: 12px;
+  border: 1px solid var(--border);
+  background: var(--bg-panel-2);
+  color: var(--text-mute);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.premium-banner.trial { border-color: var(--accent); color: var(--accent); }
+.premium-banner.active { border-color: #2ecc71; color: #2ecc71; }
+.premium-banner.expired { border-color: var(--accent-2); color: var(--accent-2); }
+
+.premium-banner button {
+  background: var(--accent);
+  border: none;
+  color: #05161a;
+  font-weight: 700;
+  font-size: 11px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+/* Discover: locked state */
+.discover-locked {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 12px;
+  padding: 40px 24px;
+  color: var(--text-mute);
+}
+.discover-locked svg { color: var(--accent); }
+.discover-locked p { font-size: 13px; line-height: 1.5; max-width: 320px; }
+
+/* Discover: genre grid */
+.genre-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+  padding: 16px 18px;
+}
+
+.genre-card {
+  aspect-ratio: 1.4;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  display: flex;
+  align-items: flex-end;
+  padding: 10px;
+  font-weight: 700;
+  font-size: 13px;
+  color: #fff;
+  cursor: pointer;
+  text-shadow: 0 1px 4px rgba(0,0,0,0.6);
+  background: linear-gradient(135deg, var(--genre-a, #3FE7FF), var(--genre-b, #1a5c66));
+}
+
+.genre-results { padding: 8px 18px 16px; }
+.genre-results h3 { font-size: 14px; margin: 8px 0 10px; }
+
+.back-btn {
+  background: none;
+  border: none;
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 4px 0;
+}
+
+/* Auth modal */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  padding: 20px;
+}
+
+.modal {
+  position: relative;
+  width: 100%;
+  max-width: 340px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 20px;
+}
+
+.modal-close {
+  position: absolute;
+  top: 10px;
+  right: 12px;
+  background: none;
+  border: none;
+  color: var(--text-mute);
+  font-size: 20px;
+  cursor: pointer;
+  line-height: 1;
+}
+
+.modal-tabs { display: flex; gap: 8px; margin-bottom: 16px; }
+.modal-tab {
+  flex: 1;
+  background: none;
+  border: 1px solid var(--border);
+  color: var(--text-mute);
+  padding: 8px 0;
+  border-radius: 7px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.modal-tab.active { color: var(--accent); border-color: var(--accent); }
+
+.auth-form { display: flex; flex-direction: column; gap: 10px; }
+.auth-form input {
+  background: var(--bg-panel-2);
+  border: 1px solid var(--border);
+  color: var(--text-main);
+  border-radius: 7px;
+  padding: 10px 12px;
+  font-size: 13px;
+}
+.auth-form input:focus { outline: none; border-color: var(--accent); }
+.auth-note { font-size: 10px; color: var(--text-mute); line-height: 1.4; }
+.auth-error { font-size: 11px; color: var(--accent-2); min-height: 14px; }
+
 /* Playlist */
 .playlist-section {
   border-top: 1px solid var(--border);
