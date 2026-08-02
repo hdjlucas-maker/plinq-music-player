@@ -90,27 +90,21 @@
       .plinq-resume-banner button.secondary {
         background: transparent; color: #9fb0b3; border: 1px solid #2a3338;
       }
-      #plinq-folder-memory-btn {
-        margin-left: 8px; font-size: 13px; opacity: .85;
-        background: transparent; color: #00f5d4; border: 1px solid #00f5d4;
-        border-radius: 6px; padding: 4px 8px; cursor: pointer;
-      }
     `;
     document.head.appendChild(style);
   }
 
-  function addFolderMemoryButton() {
-    if (!supportsFSA) return; // Firefox/Safari iOS: sem suporte, não mostra o botão
-    const folderInput = document.getElementById('folder-input');
-    if (!folderInput || !folderInput.parentElement) return;
-    const btn = document.createElement('button');
-    btn.id = 'plinq-folder-memory-btn';
-    btn.type = 'button';
-    btn.textContent = '📁 Pasta com memória';
-    btn.title = 'Escolhe uma pasta e lembra dela nas próximas visitas (sem pedir de novo)';
-    folderInput.parentElement.appendChild(btn);
+  // Assume o próprio botão "Adicionar pasta" já existente (id=add-folder-btn)
+  // quando o navegador suporta FSA — sem criar um segundo botão. Sem FSA
+  // (Firefox/Safari), o botão continua com o comportamento original
+  // (input de pasta normal, sem memória), sem diferenciação visual.
+  function upgradeFolderButton() {
+    if (!supportsFSA) return;
+    const folderBtn = document.getElementById('add-folder-btn');
+    if (!folderBtn) return;
 
-    btn.addEventListener('click', async () => {
+    folderBtn.addEventListener('click', async (e) => {
+      e.preventDefault(); // evita abrir o <input webkitdirectory> antigo (sem memória)
       try {
         const dirHandle = await window.showDirectoryPicker();
         await idbSet('rootHandle', dirHandle);
@@ -195,7 +189,7 @@
 
   function init() {
     injectStyles();
-    addFolderMemoryButton();
+    upgradeFolderButton();
     startAutoSave();
     // pequeno atraso pra garantir que script.js já rodou e expôs window.PlinqPlayer
     setTimeout(tryRestore, 300);
