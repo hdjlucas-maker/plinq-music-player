@@ -16,10 +16,14 @@
       "binding": "SUBSCRIPTIONS",
       "id": "43bff39aca584401951aa0ba6a31b51b"
     }
-  ]
+  ],
 
-  // Variáveis de ambiente (AUTH_SECRET, INFINITEPAY_HANDLE, APP_BASE_URL)
-  // NÃO ficam aqui — configure como Secrets/Variáveis no painel do Cloudflare Pages
-  // (Settings > Environment variables) ou via `wrangler pages secret put`.
-  // Ver SETUP-LICENCA.md para o passo a passo completo.
+  "vars": {
+    "INFINITEPAY_HANDLE": "servicoslucas",
+    "APP_BASE_URL": "https://plinq-music-player.pages.dev"
+  }
+
+  // AUTH_SECRET é diferente: é um segredo (dado sensível, usado pra assinar sessões
+  // de login), então NÃO fica aqui em texto puro. Adicione ele só pelo dashboard:
+  // Settings > Variables and secrets > Add > tipo "Secret".
 }
