@@ -9,10 +9,10 @@ Sprint 6 — Jamendo
 Persistência (FSA + IndexedDB + Media Session)
 Layout responsivo (celular/tablet/desktop)
 Remoção de músicas da playlist (selecionar e remover)
+Playlists múltiplas (criar/renomear/apagar/trocar)
 
 ## Sprint 1 — pendente
 
-- [ ] Playlists (múltiplas)
 - [ ] Correções gerais pendentes de identificação
 
 ## Pendência crítica

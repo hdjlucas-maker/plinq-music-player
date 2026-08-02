@@ -8,8 +8,9 @@
 
 - Build falhando por pacote `cap`.
 - Deployments antigos parecendo travados (falso positivo).
-- Persistência não confirmada → testada e OK.
+- Persistência → testada e OK.
 - Binding KV → `SUBSCRIPTIONS`.
 - 3ª env var → `AUTH_SECRET`.
 - Layout responsivo → testado e OK.
-- Remoção de músicas da playlist → implementada e OK.
+- Remoção de músicas da playlist → OK.
+- Playlists múltiplas → OK.

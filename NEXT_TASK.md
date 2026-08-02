@@ -1,7 +1,12 @@
 # NEXT_TASK.md
 
-## Tarefa imediata — Playlists múltiplas (Sprint 1)
+## Sprint 1 — encerrada
 
-Implementar suporte a múltiplas playlists (criar, nomear, alternar entre elas),
-client-side, usando o bridge `window.PlinqPlayer` e a persistência já existente
-(IndexedDB).
+Restou só "correções gerais" (sem itens identificados ainda).
+
+## Próxima Sprint — Sprint 2
+
+Gapless, Crossfade, Sleep Timer (esses 3 já implementados conforme CHANGELOG 0.83),
+Equalizador, Media Session (já implementado via persistence.js).
+
+Item real pendente da Sprint 2: **Equalizador**.
