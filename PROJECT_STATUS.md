@@ -8,8 +8,8 @@ Sprint 5 — Cloudflare / D1 / KV / InfinitePay / Trial
 - [x] Deploy em Cloudflare Pages (`plinq-music-player.pages.dev`), sem build step
 - [x] D1 (`plinq-db`) com tabela `users` (id, name, email, password_hash, cpf_hash, created_at)
 - [x] Binding D1 ativo: `PLINQ_BINDING` → `plinq-db`
-- [x] KV configurado para assinatura/trial (padrão `sub:{userId}`, nunca no D1)
-- [x] Variáveis de ambiente ativas: `INFINITEPAY_HANDLE`, `APP_BASE_URL` (+ 1 outra, nome a confirmar)
+- [x] KV configurado para assinatura/trial: binding `SUBSCRIPTIONS` → namespace `SUBSCRIPTIONS` (padrão `sub:{userId}`, nunca no D1)
+- [x] Variáveis de ambiente ativas: `INFINITEPAY_HANDLE` (plaintext, `servicoslucas`), `APP_BASE_URL` (plaintext, `https://plinq-music-player.pages.dev`), `AUTH_SECRET` (secret, assinatura do JWT)
 - [x] Fluxo de cadastro/login com nome, e-mail, senha, CPF
 - [x] Trial (banner exibido após cadastro, agora mostrando preço junto — ver CHANGELOG)
 - [x] Integração de pagamento via InfinitePay
@@ -20,12 +20,7 @@ Sprint 6 — Biblioteca Jamendo
 ## Sprint em andamento
 
 Sprint 1 — Persistência, remoção de músicas, playlists, correções gerais
-- [~] Persistência real (FSA API + IndexedDB + Media Session) — **código pronto, aplicação/push/teste ainda não confirmados pelo usuário**
-  - `persistence.js` criado (arquivo novo, isolado)
-  - `PATCH_SCRIPT_JS.md` criado com 4 patches pontuais em `script.js` (usa o bridge `window.PlinqPlayer`, nada reescrito)
-  - 1 linha adicionada em `index.html` (`<script src="persistence.js" defer>`)
-  - Falta: usuário aplicar os patches localmente, dar `git push`, e testar (fechar aba tocando → reabrir → retomar; Media Session no lock screen)
-  - Ver NEXT_TASK.md
+- [x] **Persistência real (FSA API + IndexedDB + Media Session) — CONFIRMADA E TESTADA em produção pelo usuário**
 - [ ] Remoção de músicas da playlist
 - [ ] Playlists (múltiplas)
 - [ ] Correções gerais pendentes de identificação
@@ -45,11 +40,11 @@ Sprint 7 — Otimização, Performance, Testes, Polimento final
 ## Ajustes menores em andamento (fora de sprint)
 
 - [~] Layout responsivo real (celular / tablet / desktop) — **código pronto, push e teste ainda não confirmados pelo usuário**
-  - Novo wrapper `player-main` envolvendo LCD + controles + volume + extras (permite 2 colunas no desktop sem reescrever nada)
-  - Breakpoints adicionados: tablet (700px+, card 620px, gêneros 3 colunas) e desktop (1000px+, layout 2 colunas: player fixo à esquerda, playlist à direita) e telas largas (1400px+)
-  - Playlist do celular passou de altura fixa (320px) para altura relativa à viewport (até 45%); no desktop chega a 64% da altura da tela
+  - Novo wrapper `player-main` envolvendo LCD + controles + volume + extras
+  - Breakpoints: tablet (700px+), desktop (1000px+, 2 colunas), telas largas (1400px+)
+  - Playlist do celular com altura relativa à viewport (~45%) em vez de 320px fixo
   - `index.html` e `style.css` alterados; `script.js` não foi tocado
-  - Falta: usuário substituir os 2 arquivos, dar `git push`, e testar redimensionando a janela (ou DevTools) nos 3 tamanhos
+  - Falta: usuário substituir os 2 arquivos, dar `git push`, e testar
   - Ver NEXT_TASK.md
 
 ## Pendência crítica (bloqueia considerar Sprint 5/6 "feitas" com confiança total)
