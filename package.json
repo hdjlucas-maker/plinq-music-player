@@ -8,7 +8,7 @@
     "android:sync": "node scripts/sync-android-web.js"
   },
   "keywords": [],
-  "author": "",
+  "author": "devlucas",
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
