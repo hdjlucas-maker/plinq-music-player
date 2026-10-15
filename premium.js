@@ -194,12 +194,14 @@
     premiumBanner.classList.remove('hidden');
     premiumBanner.className = 'premium-banner ' + subscription.status;
 
-    if (subscription.status === 'trial') {
-      premiumBanner.innerHTML = `<span>Teste grátis: ${subscription.daysLeft} dia(s) restante(s) — depois R$ 9,90/mês</span>`;
+    if (subscription.isOwner || currentUser.isOwner) {
+      premiumBanner.innerHTML = '<span>Acesso do proprietário — permanente</span>';
+    } else if (subscription.status === 'trial') {
+      premiumBanner.innerHTML = `<span>Teste grátis: ${subscription.daysLeft} dia(s) restante(s) — depois R$ 9,90 por 30 dias</span>`;
     } else if (subscription.status === 'active') {
       premiumBanner.innerHTML = `<span>Plinq Premium ativo — obrigado! ✨</span>`;
     } else {
-      premiumBanner.innerHTML = `<span>Seu teste/assinatura expirou.</span><button id="banner-subscribe-btn" type="button">Assinar R$9,90/mês</button>`;
+      premiumBanner.innerHTML = `<span>Seu acesso expirou.</span><button id="banner-subscribe-btn" type="button">Pagar 30 dias — R$ 9,90</button>`;
       const btn = document.getElementById('banner-subscribe-btn');
       if (btn) btn.addEventListener('click', startCheckout);
     }
@@ -214,7 +216,7 @@
       discoverLocked.classList.remove('hidden');
       discoverContent.classList.add('hidden');
       premiumBanner.classList.add('hidden');
-      discoverLockedText.textContent = 'Seu player local continua grátis pra sempre. Crie uma conta grátis pra também ouvir a biblioteca online — 30 dias de teste, depois R$ 9,90/mês.';
+      discoverLockedText.textContent = 'Crie uma conta para usar o Plinq por 30 dias grátis. Depois, pague R$ 9,90 por mais 30 dias de acesso.';
       discoverUnlockBtn.textContent = 'Criar conta / Entrar';
       return;
     }
@@ -225,8 +227,8 @@
     if (!subscription || subscription.status === 'expired') {
       discoverLocked.classList.remove('hidden');
       discoverContent.classList.add('hidden');
-      discoverLockedText.textContent = 'Seu teste da biblioteca online acabou — seu player local continua liberado normalmente. Assine por R$ 9,90/mês pra voltar a ouvir a biblioteca online.';
-      discoverUnlockBtn.textContent = 'Assinar agora';
+      discoverLockedText.textContent = 'Seu período de 30 dias terminou. Pague R$ 9,90 para liberar mais 30 dias de acesso ao Plinq.';
+      discoverUnlockBtn.textContent = 'Pagar 30 dias — R$ 9,90';
       return;
     }
 
@@ -324,6 +326,7 @@
   window.PlinqAuth = {
     openAuthModal,
     isLoggedIn: () => !!currentUser,
+    startCheckout,
   };
 
   // Handle redirect back from InfinitePay checkout (?paid=1)

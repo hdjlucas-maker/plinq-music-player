@@ -1,4 +1,5 @@
 import { getUserFromRequest } from "../_lib/getSession.js";
+import { isOwner } from "../_lib/access.js";
 
 const TRIAL_DAYS = 30;
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -7,6 +8,16 @@ export async function onRequestGet({ request, env }) {
   const session = await getUserFromRequest(request, env);
   if (!session) {
     return json({ error: "Não autenticado" }, 401);
+  }
+
+  if (isOwner(session, env)) {
+    return json({
+      status: "active",
+      isOwner: true,
+      trialStart: null,
+      currentPeriodEnd: null,
+      daysLeft: null,
+    });
   }
 
   if (!env.SUBSCRIPTIONS) {

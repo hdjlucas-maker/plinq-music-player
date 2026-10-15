@@ -1,6 +1,7 @@
 const PLAN_DURATION_DAYS = {
   monthly: 30,
 };
+const PLAN_PRICES = { monthly: 990 };
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 function jsonResponse(data, status = 200) {
@@ -56,6 +57,9 @@ export async function onRequestPost(context) {
     if (!checkData.success || !checkData.paid) {
       return jsonResponse({ success: false, message: 'Pagamento não confirmado como pago' }, 400);
     }
+    if (Number(checkData.amount) !== PLAN_PRICES[plan]) {
+      return jsonResponse({ success: false, message: 'O valor confirmado não corresponde ao plano.' }, 400);
+    }
 
     if (!env.SUBSCRIPTIONS) {
       return jsonResponse({ success: false, message: 'KV SUBSCRIPTIONS não configurado' }, 400);
@@ -68,8 +72,14 @@ export async function onRequestPost(context) {
       trialStart: now,
     };
 
+    // Webhooks repetidos são normais; não estenda o período duas vezes pela
+    // mesma transação.
+    if (existing.lastTransactionNsu === transaction_nsu) {
+      return jsonResponse({ success: true, message: null });
+    }
+
     const durationDays = PLAN_DURATION_DAYS[plan];
-    const currentPeriodEnd = now + durationDays * DAY_MS;
+    const currentPeriodEnd = Math.max(now, Number(existing.currentPeriodEnd) || 0) + durationDays * DAY_MS;
 
     const updated = {
       ...existing,

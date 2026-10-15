@@ -1,3 +1,6 @@
+import { getUserFromRequest } from "../_lib/getSession.js";
+import { isOwner } from "../_lib/access.js";
+
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
@@ -15,7 +18,6 @@ function jsonResponse(data, status = 200) {
     headers: { 'Content-Type': 'application/json', ...CORS_HEADERS },
   });
 }
-
 export async function onRequestOptions() {
   return new Response(null, { status: 200, headers: CORS_HEADERS });
 }
@@ -24,11 +26,18 @@ export async function onRequestPost(context) {
   const { request, env } = context;
 
   try {
+    const session = await getUserFromRequest(request, env);
+    if (!session) return jsonResponse({ error: 'Faça login para continuar.' }, 401);
+    if (isOwner(session, env)) return jsonResponse({ error: 'A conta do proprietário não precisa de assinatura.' }, 403);
+
     const body = await request.json().catch(() => ({}));
     const { userId, plan = 'monthly' } = body;
 
     if (!userId || typeof userId !== 'string') {
       return jsonResponse({ error: 'userId é obrigatório' }, 400);
+    }
+    if (userId !== session.id) {
+      return jsonResponse({ error: 'A conta da sessão não corresponde ao pedido.' }, 403);
     }
 
     if (!PLANS[plan]) {

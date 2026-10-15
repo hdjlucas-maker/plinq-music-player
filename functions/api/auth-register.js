@@ -1,5 +1,6 @@
 import { hashPassword, createSessionToken } from "../_lib/auth.js";
 import { isValidCPF, hashCPF } from "../_lib/cpf.js";
+import { normalizeEmail } from "../_lib/access.js";
 
 export async function onRequestPost({ request, env }) {
   try {
@@ -15,7 +16,10 @@ export async function onRequestPost({ request, env }) {
       return json({ error: "CPF inválido. Confira os números digitados." }, 400);
     }
 
-    const emailNorm = email.toLowerCase().trim();
+    const emailNorm = normalizeEmail(email);
+    if (env.PLINQ_OWNER_EMAIL && emailNorm === normalizeEmail(env.PLINQ_OWNER_EMAIL)) {
+      return json({ error: "Este e-mail está reservado para a conta do proprietário." }, 409);
+    }
     const cpfHash = await hashCPF(cpf);
 
     const existingEmail = await env.PLINQ_BINDING.prepare("SELECT id FROM users WHERE email = ?")

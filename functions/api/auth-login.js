@@ -1,11 +1,26 @@
 import { verifyPassword, createSessionToken } from "../_lib/auth.js";
+import { normalizeEmail } from "../_lib/access.js";
 
 export async function onRequestPost({ request, env }) {
   try {
     const { email, password } = await request.json();
     if (!email || !password) return json({ error: "Preencha e-mail e senha." }, 400);
 
-    const emailNorm = email.toLowerCase().trim();
+    const emailNorm = normalizeEmail(email);
+
+    // Dono configurado no servidor: credenciais não ficam no código nem no banco.
+    if (env.PLINQ_OWNER_EMAIL && env.PLINQ_OWNER_PASSWORD
+      && emailNorm === normalizeEmail(env.PLINQ_OWNER_EMAIL)
+      && password === env.PLINQ_OWNER_PASSWORD) {
+      const token = await createSessionToken({ sub: "plinq-owner", email: emailNorm }, env.AUTH_SECRET);
+      return new Response(JSON.stringify({ id: "plinq-owner", name: "Proprietário", email: emailNorm, isOwner: true }), {
+        status: 200,
+        headers: {
+          "Content-Type": "application/json",
+          "Set-Cookie": `plinq_session=${token}; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=${60 * 60 * 24 * 30}`,
+        },
+      });
+    }
 
     const user = await env.PLINQ_BINDING.prepare(
       "SELECT id, name, email, password_hash FROM users WHERE email = ?"
