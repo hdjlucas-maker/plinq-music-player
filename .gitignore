@@ -1,1 +1,5 @@
 node_modules/
+PLINQ_OWNER_CREDENTIALS.txt
+PLINQ_ANDROID_SIGNING.txt
+android/keystore/
+android/keystore.properties

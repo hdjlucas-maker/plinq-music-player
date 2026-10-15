@@ -1,6 +1,7 @@
 import { hashPassword, createSessionToken } from "../_lib/auth.js";
 import { isValidCPF, hashCPF } from "../_lib/cpf.js";
 import { normalizeEmail } from "../_lib/access.js";
+import { isNativeAppRequest } from "../_lib/native.js";
 
 export async function onRequestPost({ request, env }) {
   try {
@@ -55,8 +56,10 @@ export async function onRequestPost({ request, env }) {
     }
 
     const token = await createSessionToken({ sub: id, email: emailNorm }, env.AUTH_SECRET);
+    const user = { id, name, email: emailNorm };
+    if (isNativeAppRequest(request)) user.sessionToken = token;
 
-    return new Response(JSON.stringify({ id, name, email: emailNorm }), {
+    return new Response(JSON.stringify(user), {
       status: 201,
       headers: {
         "Content-Type": "application/json",

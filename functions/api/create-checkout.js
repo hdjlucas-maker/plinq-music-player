@@ -1,12 +1,6 @@
 import { getUserFromRequest } from "../_lib/getSession.js";
 import { isOwner } from "../_lib/access.js";
 
-const CORS_HEADERS = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type',
-};
-
 // Plano único do Plinq: R$ 9,90/mês (ver DECISIONS.md).
 const PLANS = {
   monthly: { price: 990, description: 'Plinq Premium - 30 dias de acesso' }, // em centavos
@@ -15,11 +9,8 @@ const PLANS = {
 function jsonResponse(data, status = 200) {
   return new Response(JSON.stringify(data), {
     status,
-    headers: { 'Content-Type': 'application/json', ...CORS_HEADERS },
+    headers: { 'Content-Type': 'application/json' },
   });
-}
-export async function onRequestOptions() {
-  return new Response(null, { status: 200, headers: CORS_HEADERS });
 }
 
 export async function onRequestPost(context) {

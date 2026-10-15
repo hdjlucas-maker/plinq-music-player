@@ -10,6 +10,8 @@
   }
 
   function showGate(kind, message) {
+    if (window.PlinqPlayer) window.PlinqPlayer.pause();
+
     if (!overlayEl) {
       overlayEl = document.createElement('div');
       overlayEl.className = 'modal-overlay';
@@ -20,19 +22,24 @@
 
     const needsLogin = kind === 'login';
     const unavailable = kind === 'unavailable';
+    const checkingAccess = kind === 'checking';
     overlayEl.innerHTML = `
       <div class="modal">
         <p style="margin:0 0 16px;line-height:1.5;">
           ${message || (needsLogin
             ? 'Crie uma conta e use o Plinq por 30 dias grátis. Depois, pague R$ 9,90 por mais 30 dias de acesso.'
+            : checkingAccess
+              ? 'Verificando seu acesso…'
             : unavailable
               ? 'Não consegui confirmar seu acesso. Verifique a internet e tente novamente.'
               : 'Seu período de 30 dias terminou. Pague R$ 9,90 para liberar mais 30 dias de acesso ao Plinq.')}
         </p>
-        <button class="add-files-btn" id="account-gate-action" type="button">${needsLogin ? 'Criar conta / Entrar' : unavailable ? 'Tentar novamente' : 'Pagar 30 dias — R$ 9,90'}</button>
+        <button class="add-files-btn" id="account-gate-action" type="button"${checkingAccess ? ' hidden' : ''}>${needsLogin ? 'Criar conta / Entrar' : unavailable ? 'Tentar novamente' : 'Pagar 30 dias — R$ 9,90'}</button>
       </div>`;
 
-    overlayEl.querySelector('#account-gate-action').addEventListener('click', () => {
+    const action = overlayEl.querySelector('#account-gate-action');
+    if (!action || checkingAccess) return;
+    action.addEventListener('click', () => {
       if (needsLogin && window.PlinqAuth) window.PlinqAuth.openAuthModal('register');
       else if (unavailable) evaluate();
       else if (window.PlinqAuth) window.PlinqAuth.startCheckout();
@@ -43,7 +50,7 @@
     if (checking) return;
     checking = true;
     try {
-      const authRes = await fetch('/api/auth-me', { credentials: 'same-origin' });
+      const authRes = await window.PlinqApi.request('/api/auth-me');
       if (!authRes.ok) throw new Error('Falha ao consultar a conta');
       const authData = await authRes.json();
       if (!authData.user) {
@@ -51,7 +58,7 @@
         return;
       }
 
-      const accessRes = await fetch('/api/subscription-status', { credentials: 'same-origin' });
+      const accessRes = await window.PlinqApi.request('/api/subscription-status');
       if (!accessRes.ok) throw new Error('Falha ao consultar o período de acesso');
       const access = await accessRes.json();
       if (access.isOwner || access.status === 'trial' || access.status === 'active') {
@@ -72,5 +79,6 @@
     if (document.visibilityState === 'visible') evaluate();
   });
   window.setInterval(evaluate, 60_000);
+  showGate('checking');
   evaluate();
 })();

@@ -113,10 +113,9 @@
     const email = $('login-email').value;
     const password = $('login-password').value;
     try {
-      const res = await fetch('/api/auth-login', {
+      const res = await window.PlinqApi.request('/api/auth-login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        credentials: 'same-origin',
         body: JSON.stringify({
           email,
           password,
@@ -124,6 +123,7 @@
       });
       const data = await res.json();
       if (!res.ok) { loginError.textContent = data.error || 'Erro ao entrar.'; return; }
+      window.PlinqApi.saveSessionToken(data.sessionToken);
       currentUser = data;
       if (loginSaveAccess.checked) downloadAccessFile(data.name, email, password);
       window.dispatchEvent(new CustomEvent('plinq:auth-changed'));
@@ -141,10 +141,9 @@
     const email = $('register-email').value;
     const password = $('register-password').value;
     try {
-      const res = await fetch('/api/auth-register', {
+      const res = await window.PlinqApi.request('/api/auth-register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        credentials: 'same-origin',
         body: JSON.stringify({
           name,
           email,
@@ -154,6 +153,7 @@
       });
       const data = await res.json();
       if (!res.ok) { registerError.textContent = data.error || 'Erro ao criar conta.'; return; }
+      window.PlinqApi.saveSessionToken(data.sessionToken);
       currentUser = data;
       if (registerSaveAccess.checked) downloadAccessFile(name, email, password);
       window.dispatchEvent(new CustomEvent('plinq:auth-changed'));
@@ -167,7 +167,7 @@
   // ---- Session / subscription ----
   async function loadSession() {
     try {
-      const res = await fetch('/api/auth-me', { credentials: 'same-origin' });
+      const res = await window.PlinqApi.request('/api/auth-me');
       const data = await res.json();
       currentUser = data.user || null;
     } catch (err) {
@@ -178,7 +178,7 @@
   async function loadSubscription() {
     if (!currentUser) { subscription = null; return; }
     try {
-      const res = await fetch('/api/subscription-status', { credentials: 'same-origin' });
+      const res = await window.PlinqApi.request('/api/subscription-status');
       if (!res.ok) { subscription = null; return; }
       subscription = await res.json();
     } catch (err) {
@@ -240,10 +240,9 @@
   async function startCheckout() {
     if (!currentUser) { openAuthModal('register'); return; }
     try {
-      const res = await fetch('/api/create-checkout', {
+      const res = await window.PlinqApi.request('/api/create-checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        credentials: 'same-origin',
         body: JSON.stringify({ userId: currentUser.id, plan: 'monthly' }),
       });
       const data = await res.json();

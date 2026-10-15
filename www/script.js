@@ -1,9 +1,16 @@
 // ==========================================================
-// Plinq - player de música local (sem anúncios, sem login)
+// Plinq - player de música  (sem anúncios,)
 // ==========================================================
 
 (function () {
-  const audio = document.getElementById('audio-el');
+  const audioA = document.getElementById('audio-el');
+  const audioB = document.getElementById('audio-el-2');
+  // Necessário pra faixas remotas (Jamendo/Descobrir) tocarem com som:
+  // sem isso, uma vez que o elemento é conectado ao Web Audio API (pro
+  // visualizador/crossfade), fontes de outra origem sem CORS ficam mudas.
+  audioA.crossOrigin = 'anonymous';
+  audioB.crossOrigin = 'anonymous';
+  const els = [audioA, audioB];
   const playBtn = document.getElementById('play-btn');
   const playIcon = document.getElementById('play-icon');
   const prevBtn = document.getElementById('prev-btn');
@@ -23,6 +30,13 @@
   const progressFill = document.getElementById('progress-fill');
   const visualizer = document.getElementById('visualizer');
 
+  const crossfadeBtn = document.getElementById('crossfade-btn');
+  const crossfadeMenu = document.getElementById('crossfade-menu');
+  const crossfadeLabelEl = document.getElementById('crossfade-label');
+  const sleepBtn = document.getElementById('sleep-btn');
+  const sleepMenu = document.getElementById('sleep-menu');
+  const sleepLabelEl = document.getElementById('sleep-label');
+
   const ICON_PLAY = '<polygon points="6,4 20,12 6,20"/>';
   const ICON_PAUSE = '<rect x="5" y="4" width="4" height="16"/><rect x="15" y="4" width="4" height="16"/>';
 
@@ -32,6 +46,59 @@
   let shuffleOn = false;
   let repeatOn = false;
   let shuffleHistory = [];
+
+  // Seleção múltipla / apagar em lote
+  let selectionMode = false;
+  let selectedIndices = new Set();
+
+  const selectModeBtn = document.getElementById('select-mode-btn');
+  const selectionToolbar = document.getElementById('selection-toolbar');
+  const selectAllCheckbox = document.getElementById('select-all-checkbox');
+  const selectionCountLabel = document.getElementById('selection-count-label');
+  const deleteSelectedBtn = document.getElementById('delete-selected-btn');
+  const deleteAllBtn = document.getElementById('delete-all-btn');
+  const cancelSelectBtn = document.getElementById('cancel-select-btn');
+
+  // Dual-element playback engine (gapless preload + crossfade)
+  let activeIdx = 0;
+  let gains = null; // [gainA, gainB], set up once Web Audio graph exists
+  let masterGain = null;
+  let transitioning = false;   // true while a crossfade fade is in progress
+  let gaplessPreloaded = false; // true once the inactive element has the next track buffered (crossfade off)
+  let pendingNextIndex = null;  // index chosen ahead of time for the upcoming auto-transition
+
+  let crossfadeDuration = parseInt(localStorage.getItem('plinq_crossfade') || '0', 10);
+  if (![0, 3, 6, 10].includes(crossfadeDuration)) crossfadeDuration = 0;
+
+  // Equalizador: 5 bandas peaking, -12dB a +12dB, aplicadas no sinal já
+  // somado (masterGain) — vale tanto pro áudio A quanto B, inclusive
+  // durante crossfade.
+  const EQ_BANDS = [60, 230, 910, 3600, 14000];
+  let eqValues = loadEqValues();
+  let eqFilters = null; // criados só quando o audioCtx existe
+
+  function loadEqValues() {
+    try {
+      const saved = JSON.parse(localStorage.getItem('plinq_eq') || 'null');
+      if (Array.isArray(saved) && saved.length === EQ_BANDS.length) return saved;
+    } catch (e) {}
+    return EQ_BANDS.map(() => 0);
+  }
+
+  function saveEqValues() {
+    localStorage.setItem('plinq_eq', JSON.stringify(eqValues));
+  }
+
+  // Sleep timer state
+  let sleepTimeoutId = null;
+  let sleepLabelInterval = null;
+  let sleepEndAt = null;
+  let sleepAtTrackEnd = false;
+
+  function getActive() { return els[activeIdx]; }
+  function getInactive() { return els[1 - activeIdx]; }
+  function getActiveGain() { return gains ? gains[activeIdx] : null; }
+  function getInactiveGain() { return gains ? gains[1 - activeIdx] : null; }
 
   // Build visualizer bars
   const BAR_COUNT = 28;
@@ -56,20 +123,52 @@
       analyser.channelCountMode = 'explicit';
       analyser.channelInterpretation = 'discrete';
 
-      sourceNode = audioCtx.createMediaElementSource(audio);
-      // MediaElementAudioSourceNode replaces direct element output. Keep a
-      // direct route until the visualizer route is fully connected.
-      sourceNode.connect(audioCtx.destination);
-      sourceNode.channelCount = 2;
-      sourceNode.channelCountMode = 'explicit';
-      sourceNode.channelInterpretation = 'discrete';
+      masterGain = audioCtx.createGain();
+      masterGain.gain.value = 1;
 
-      sourceNode.connect(analyser);
+      // Cadeia de EQ em série: masterGain -> filtro1 -> ... -> filtro5 -> analyser
+      eqFilters = EQ_BANDS.map((freq, i) => {
+        const f = audioCtx.createBiquadFilter();
+        f.type = 'peaking';
+        f.frequency.value = freq;
+        f.Q.value = 1;
+        f.gain.value = eqValues[i] || 0;
+        return f;
+      });
+      let node = masterGain;
+      eqFilters.forEach(f => { node.connect(f); node = f; });
+      node.connect(analyser);
       analyser.connect(audioCtx.destination);
-      sourceNode.disconnect(audioCtx.destination);
+
+      // Create each media source only after the rest of the effect graph is
+      // ready. A MediaElementAudioSourceNode replaces the element's direct
+      // output, so connect it to the destination immediately as a safe path.
+      const sources = els.map(el => audioCtx.createMediaElementSource(el));
+
+      // Each <audio> element gets its own source -> gain node, both summed
+      // into masterGain. This is what makes crossfade (independent volume
+      // ramps per element) and gapless preload (silent buffering on the
+      // inactive element) possible.
+      gains = els.map((el, i) => {
+        const src = sources[i];
+        // Keep a direct route until the complete effects route is connected.
+        // If setup fails partway, audio still reaches the speakers.
+        src.connect(audioCtx.destination);
+        src.channelCount = 2;
+        src.channelCountMode = 'explicit';
+        src.channelInterpretation = 'discrete';
+        const gain = audioCtx.createGain();
+        gain.gain.value = 1;
+        src.connect(gain);
+        gain.connect(masterGain);
+        src.disconnect(audioCtx.destination);
+        return gain;
+      });
+
       dataArray = new Uint8Array(analyser.frequencyBinCount);
     } catch (e) {
-      // Visualizer unsupported, fail silently
+      // Visualizer/Web Audio unsupported, fail silently — playback still
+      // works through the plain <audio> element, just without crossfade.
     }
   }
 
@@ -159,11 +258,25 @@
 
     tracks.forEach((track, i) => {
       const li = document.createElement('li');
-      li.className = i === currentIndex ? 'active' : '';
+      const classes = [];
+      if (i === currentIndex) classes.push('active');
+      if (selectionMode && selectedIndices.has(i)) classes.push('selected');
+      li.className = classes.join(' ');
 
-      const indexEl = document.createElement('span');
-      indexEl.className = 'track-index';
-      indexEl.textContent = String(i + 1).padStart(2, '0');
+      if (selectionMode) {
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.className = 'track-checkbox';
+        checkbox.checked = selectedIndices.has(i);
+        checkbox.addEventListener('click', (ev) => ev.stopPropagation());
+        checkbox.addEventListener('change', () => toggleTrackSelection(i));
+        li.appendChild(checkbox);
+      } else {
+        const indexEl = document.createElement('span');
+        indexEl.className = 'track-index';
+        indexEl.textContent = String(i + 1).padStart(2, '0');
+        li.appendChild(indexEl);
+      }
 
       const infoEl = document.createElement('div');
       infoEl.className = 'track-info';
@@ -176,21 +289,28 @@
       durEl.className = 't-dur';
       durEl.textContent = track.duration ? formatTime(track.duration) : '--:--';
 
-      const removeBtn = document.createElement('button');
-      removeBtn.className = 'remove-btn';
-      removeBtn.setAttribute('aria-label', 'Remover da playlist');
-      removeBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>';
-      removeBtn.addEventListener('click', (ev) => {
-        ev.stopPropagation();
-        removeTrack(i);
-      });
-
-      li.appendChild(indexEl);
       li.appendChild(infoEl);
       li.appendChild(durEl);
-      li.appendChild(removeBtn);
 
-      li.addEventListener('click', () => loadTrack(i, true));
+      if (!selectionMode) {
+        const removeBtn = document.createElement('button');
+        removeBtn.className = 'remove-btn';
+        removeBtn.setAttribute('aria-label', 'Remover da playlist');
+        removeBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>';
+        removeBtn.addEventListener('click', (ev) => {
+          ev.stopPropagation();
+          removeTrack(i);
+        });
+        li.appendChild(removeBtn);
+      }
+
+      li.addEventListener('click', () => {
+        if (selectionMode) {
+          toggleTrackSelection(i);
+        } else {
+          loadTrack(i, true);
+        }
+      });
 
       playlistEl.appendChild(li);
     });
@@ -198,39 +318,144 @@
     trackCounterEl.textContent = tracks.length === 0
       ? '0 / 0'
       : `${currentIndex + 1} / ${tracks.length}`;
+
+    updateSelectionUI();
   }
 
-  function removeTrack(index) {
-    const wasCurrent = index === currentIndex;
-    URL.revokeObjectURL(tracks[index].url);
-    tracks.splice(index, 1);
+  // ---- Seleção múltipla / apagar em lote ----
+
+  function setSelectionMode(on) {
+    selectionMode = on;
+    if (!on) selectedIndices.clear();
+    selectModeBtn.textContent = on ? 'Cancelar' : 'Selecionar';
+    selectModeBtn.classList.toggle('on', on);
+    selectionToolbar.classList.toggle('hidden', !on);
+    renderPlaylist();
+  }
+
+  function toggleTrackSelection(i) {
+    if (selectedIndices.has(i)) selectedIndices.delete(i);
+    else selectedIndices.add(i);
+    renderPlaylist();
+  }
+
+  function updateSelectionUI() {
+    const n = selectedIndices.size;
+    selectionCountLabel.textContent = n + ' selecionada(s)';
+    deleteSelectedBtn.disabled = n === 0;
+    selectAllCheckbox.checked = tracks.length > 0 && n === tracks.length;
+  }
+
+  selectModeBtn.addEventListener('click', () => setSelectionMode(!selectionMode));
+  cancelSelectBtn.addEventListener('click', () => setSelectionMode(false));
+
+  selectAllCheckbox.addEventListener('change', () => {
+    selectedIndices = selectAllCheckbox.checked
+      ? new Set(tracks.map((_, i) => i))
+      : new Set();
+    renderPlaylist();
+  });
+
+  deleteSelectedBtn.addEventListener('click', () => {
+    if (selectedIndices.size === 0) return;
+    const n = selectedIndices.size;
+    if (!confirm(`Apagar ${n} música(s) selecionada(s) da playlist?`)) return;
+    removeTracksBulk(Array.from(selectedIndices));
+    setSelectionMode(false);
+  });
+
+  deleteAllBtn.addEventListener('click', () => {
+    if (tracks.length === 0) return;
+    if (!confirm('Apagar TODAS as músicas da playlist? Essa ação não pode ser desfeita.')) return;
+    deleteAllTracks();
+  });
+
+  function resetPlayerToEmpty() {
+    currentIndex = -1;
+    getActive().pause();
+    getActive().removeAttribute('src');
+    trackNameEl.textContent = 'Nenhuma música carregada';
+    trackNameEl.classList.add('empty');
+    setPlayingState(false);
+    progressFill.style.width = '0%';
+    currentTimeEl.textContent = '00:00';
+    durationTimeEl.textContent = '00:00';
+  }
+
+  // Remove um ou vários índices de uma vez. Localiza a faixa que estava
+  // tocando pela referência do objeto (não pelo índice antigo), porque
+  // remover várias faixas de uma vez desloca os índices restantes.
+  function removeTracksBulk(indices) {
+    const toRemove = new Set(indices);
+    const currentTrackObj = currentIndex !== -1 ? tracks[currentIndex] : null;
+
+    tracks.filter((t, i) => toRemove.has(i)).forEach(t => URL.revokeObjectURL(t.url));
+    tracks = tracks.filter((t, i) => !toRemove.has(i));
+
+    resetInactive();
 
     if (tracks.length === 0) {
-      currentIndex = -1;
-      audio.pause();
-      audio.removeAttribute('src');
-      trackNameEl.textContent = 'Nenhuma música carregada';
-      trackNameEl.classList.add('empty');
-      setPlayingState(false);
-      progressFill.style.width = '0%';
-      currentTimeEl.textContent = '00:00';
-      durationTimeEl.textContent = '00:00';
-    } else if (wasCurrent) {
-      const newIndex = Math.min(index, tracks.length - 1);
-      loadTrack(newIndex, isPlaying);
-    } else if (index < currentIndex) {
-      currentIndex--;
+      resetPlayerToEmpty();
+    } else if (currentTrackObj) {
+      const newIndex = tracks.indexOf(currentTrackObj);
+      if (newIndex === -1) {
+        // a faixa que estava tocando foi apagada
+        resetPlayerToEmpty();
+      } else {
+        // mesma faixa, só o índice mudou — sem precisar recarregar o áudio
+        currentIndex = newIndex;
+      }
     }
 
     renderPlaylist();
   }
 
+  function deleteAllTracks() {
+    tracks.forEach(t => URL.revokeObjectURL(t.url));
+    tracks = [];
+    resetInactive();
+    resetPlayerToEmpty();
+    renderPlaylist();
+  }
+
+  function removeTrack(index) {
+    removeTracksBulk([index]);
+  }
+
+  // Stops/clears the inactive element and cancels any pending gapless
+  // preload or crossfade bookkeeping. Called whenever the "next track"
+  // that was silently prepared no longer applies (manual skip, playlist
+  // edit, new track loaded directly, etc).
+  function resetInactive() {
+    const inactive = getInactive();
+    inactive.pause();
+    inactive.removeAttribute('src');
+    try { inactive.load(); } catch (e) {}
+    const ig = getInactiveGain();
+    if (ig && audioCtx) {
+      ig.gain.cancelScheduledValues(audioCtx.currentTime);
+      ig.gain.value = 1;
+    }
+    pendingNextIndex = null;
+    gaplessPreloaded = false;
+    transitioning = false;
+  }
+
   function loadTrack(index, autoPlay) {
     if (index < 0 || index >= tracks.length) return;
+    resetInactive();
     currentIndex = index;
     const track = tracks[index];
+    const el = getActive();
 
-    audio.src = track.url;
+    const ag = getActiveGain();
+    if (ag && audioCtx) {
+      ag.gain.cancelScheduledValues(audioCtx.currentTime);
+      ag.gain.value = 1;
+    }
+
+    el.src = track.url;
+    el.currentTime = 0;
     trackNameEl.textContent = track.name;
     trackNameEl.classList.remove('empty');
     progressFill.style.width = '0%';
@@ -238,6 +463,7 @@
 
     renderPlaylist();
     scrollActiveIntoView();
+    updateMediaSessionMetadata(track);
 
     if (autoPlay) {
       playAudio();
@@ -266,18 +492,23 @@
       loadTrack(0, true);
       return;
     }
+    // Resume Web Audio synchronously from the user's play gesture. Mobile
+    // browsers may otherwise keep the connected media element muted.
     setupAudioContext();
     const resumePromise = audioCtx && audioCtx.state === 'suspended'
       ? audioCtx.resume().catch(() => {})
       : Promise.resolve();
-    const playPromise = audio.play();
+    // Call play in the same user gesture; some mobile browsers reject it if
+    // we wait for AudioContext.resume() to finish first.
+    const playPromise = getActive().play();
     Promise.all([resumePromise, playPromise])
       .then(() => setPlayingState(true))
       .catch(() => {});
   }
 
   function pauseAudio() {
-    audio.pause();
+    getActive().pause();
+    if (transitioning) getInactive().pause();
     setPlayingState(false);
   }
 
@@ -307,6 +538,8 @@
     return (currentIndex - 1 + tracks.length) % tracks.length;
   }
 
+  // Manual skips are always instant (no crossfade) — crossfade only
+  // applies to the automatic transition when a track naturally finishes.
   nextBtn.addEventListener('click', () => {
     if (tracks.length === 0) return;
     if (shuffleOn) shuffleHistory.push(currentIndex);
@@ -316,8 +549,8 @@
 
   prevBtn.addEventListener('click', () => {
     if (tracks.length === 0) return;
-    if (audio.currentTime > 3) {
-      audio.currentTime = 0;
+    if (getActive().currentTime > 3) {
+      getActive().currentTime = 0;
       return;
     }
     const prev = getPrevIndex();
@@ -335,12 +568,279 @@
     repeatBtn.classList.toggle('on', repeatOn);
   });
 
-  audio.addEventListener('ended', () => {
+  // ---- Sleep timer ---------------------------------------------------
+
+  function fadeOutAndPause(duration) {
+    const ag = getActiveGain();
+    if (audioCtx && ag) {
+      const now = audioCtx.currentTime;
+      ag.gain.cancelScheduledValues(now);
+      ag.gain.setValueAtTime(ag.gain.value, now);
+      ag.gain.linearRampToValueAtTime(0, now + duration);
+      setTimeout(() => {
+        pauseAudio();
+        if (audioCtx) {
+          ag.gain.cancelScheduledValues(audioCtx.currentTime);
+          ag.gain.value = 1;
+        }
+      }, duration * 1000 + 50);
+    } else {
+      pauseAudio();
+    }
+  }
+
+  function clearSleepTimer() {
+    if (sleepTimeoutId) clearTimeout(sleepTimeoutId);
+    if (sleepLabelInterval) clearInterval(sleepLabelInterval);
+    sleepTimeoutId = null;
+    sleepLabelInterval = null;
+    sleepEndAt = null;
+    sleepAtTrackEnd = false;
+  }
+
+  function clearSleepUI() {
+    clearSleepTimer();
+    sleepLabelEl.textContent = 'Sleep Timer';
+    sleepBtn.classList.remove('on');
+  }
+
+  function updateSleepLabel() {
+    if (!sleepEndAt) return;
+    const remaining = Math.max(0, sleepEndAt - Date.now());
+    const m = Math.floor(remaining / 60000);
+    const s = Math.floor((remaining % 60000) / 1000);
+    sleepLabelEl.textContent = m + ':' + String(s).padStart(2, '0');
+  }
+
+  function setSleepMinutes(mins) {
+    clearSleepTimer();
+    sleepEndAt = Date.now() + mins * 60000;
+    sleepBtn.classList.add('on');
+    updateSleepLabel();
+    sleepLabelInterval = setInterval(updateSleepLabel, 1000);
+    sleepTimeoutId = setTimeout(() => {
+      fadeOutAndPause(5);
+      clearSleepUI();
+    }, mins * 60000);
+  }
+
+  function setSleepAtTrackEnd() {
+    clearSleepTimer();
+    sleepAtTrackEnd = true;
+    sleepBtn.classList.add('on');
+    sleepLabelEl.textContent = 'Para no fim da música';
+  }
+
+  // Checked right before an automatic track transition would happen.
+  // Returns true (and stops playback) if the user asked to stop here.
+  function checkSleepAtEnd() {
+    if (!sleepAtTrackEnd) return false;
+    clearSleepUI();
+    fadeOutAndPause(3);
+    return true;
+  }
+
+  function closeAllPopovers() {
+    document.querySelectorAll('.extra-menu.open').forEach(m => m.classList.remove('open'));
+    document.querySelectorAll('.extra-btn').forEach(b => b.setAttribute('aria-expanded', 'false'));
+  }
+
+  function togglePopover(btn, menu) {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const willOpen = !menu.classList.contains('open');
+      closeAllPopovers();
+      if (willOpen) {
+        menu.classList.add('open');
+        btn.setAttribute('aria-expanded', 'true');
+      }
+    });
+  }
+
+  togglePopover(crossfadeBtn, crossfadeMenu);
+  togglePopover(sleepBtn, sleepMenu);
+  document.addEventListener('click', closeAllPopovers);
+  menuStopPropagation(crossfadeMenu);
+  menuStopPropagation(sleepMenu);
+  function menuStopPropagation(menu) {
+    menu.addEventListener('click', (e) => e.stopPropagation());
+  }
+
+  crossfadeMenu.querySelectorAll('button').forEach(b => {
+    b.addEventListener('click', () => {
+      crossfadeDuration = parseInt(b.dataset.value, 10);
+      localStorage.setItem('plinq_crossfade', String(crossfadeDuration));
+      crossfadeLabelEl.textContent = 'Crossfade: ' + (crossfadeDuration === 0 ? 'Desligado' : crossfadeDuration + 's');
+      crossfadeBtn.classList.toggle('on', crossfadeDuration > 0);
+      resetInactive();
+      closeAllPopovers();
+    });
+  });
+
+  sleepMenu.querySelectorAll('button').forEach(b => {
+    b.addEventListener('click', () => {
+      const v = b.dataset.min;
+      if (v === 'off') clearSleepUI();
+      else if (v === 'end') setSleepAtTrackEnd();
+      else setSleepMinutes(parseInt(v, 10));
+      closeAllPopovers();
+    });
+  });
+
+  // Initialize crossfade label/button to match the persisted setting
+  crossfadeLabelEl.textContent = 'Crossfade: ' + (crossfadeDuration === 0 ? 'Desligado' : crossfadeDuration + 's');
+  crossfadeBtn.classList.toggle('on', crossfadeDuration > 0);
+
+  // ---- Equalizador ----
+
+  const eqBtn = document.getElementById('eq-btn');
+  const eqMenu = document.getElementById('eq-menu');
+  const eqLabelEl = document.getElementById('eq-label');
+  const eqResetBtn = document.getElementById('eq-reset-btn');
+  const eqSliders = eqMenu ? Array.from(eqMenu.querySelectorAll('input[type="range"]')) : [];
+
+  function eqIsFlat() { return eqValues.every(v => v === 0); }
+
+  function updateEqLabel() {
+    eqLabelEl.textContent = 'Equalizador' + (eqIsFlat() ? '' : ' (ativo)');
+    eqBtn.classList.toggle('on', !eqIsFlat());
+  }
+
+  function setEqBand(i, db) {
+    eqValues[i] = db;
+    if (eqFilters && eqFilters[i]) eqFilters[i].gain.value = db;
+    saveEqValues();
+    updateEqLabel();
+  }
+
+  eqSliders.forEach((slider, i) => {
+    slider.value = String(eqValues[i] || 0);
+    slider.addEventListener('input', () => setEqBand(i, parseFloat(slider.value)));
+  });
+
+  if (eqResetBtn) {
+    eqResetBtn.addEventListener('click', () => {
+      eqValues = EQ_BANDS.map(() => 0);
+      eqSliders.forEach(s => { s.value = '0'; });
+      if (eqFilters) eqFilters.forEach(f => { f.gain.value = 0; });
+      saveEqValues();
+      updateEqLabel();
+    });
+  }
+
+  if (eqBtn && eqMenu) {
+    togglePopover(eqBtn, eqMenu);
+    menuStopPropagation(eqMenu);
+  }
+  updateEqLabel();
+
+  // ---- Automatic transition engine (gapless preload / crossfade) ----
+
+  // Instantly swaps which element is "active" — used both by the gapless
+  // path (inactive element was already fully buffered ahead of time) and
+  // at the end of a crossfade fade.
+  function switchActiveTo(newIdx, trackIndex) {
+    activeIdx = newIdx;
+    currentIndex = trackIndex;
+    trackNameEl.textContent = tracks[trackIndex].name;
+    trackNameEl.classList.remove('empty');
+    gaplessPreloaded = false;
+    pendingNextIndex = null;
+    renderPlaylist();
+    scrollActiveIntoView();
+    updateMediaSessionMetadata(tracks[trackIndex]);
+  }
+
+  function preloadGapless() {
+    if (gaplessPreloaded || repeatOn) return;
+    const next = getNextIndex();
+    if (next === -1) return;
+    pendingNextIndex = next;
+    const el = getInactive();
+    el.src = tracks[next].url;
+    el.preload = 'auto';
+    try { el.load(); } catch (e) {}
+    gaplessPreloaded = true;
+  }
+
+  function startCrossfade() {
+    if (transitioning || !audioCtx || !gains) return;
+    if (checkSleepAtEnd()) return;
+    if (repeatOn) return; // let the plain 'ended' handler loop the same track
+
+    const nextIdx = pendingNextIndex !== null ? pendingNextIndex : getNextIndex();
+    if (nextIdx === -1) return;
+
+    transitioning = true;
+    if (shuffleOn) shuffleHistory.push(currentIndex);
+
+    const fromGain = getActiveGain();
+    const toIdx = 1 - activeIdx;
+    const toEl = els[toIdx];
+    const toGain = gains[toIdx];
+    const track = tracks[nextIdx];
+
+    toEl.src = track.url;
+    toEl.currentTime = 0;
+    toGain.gain.cancelScheduledValues(audioCtx.currentTime);
+    toGain.gain.setValueAtTime(0, audioCtx.currentTime);
+
+    toEl.play().then(() => {
+      const now = audioCtx.currentTime;
+      const dur = crossfadeDuration;
+      fromGain.gain.cancelScheduledValues(now);
+      fromGain.gain.setValueAtTime(fromGain.gain.value, now);
+      fromGain.gain.linearRampToValueAtTime(0, now + dur);
+      toGain.gain.cancelScheduledValues(now);
+      toGain.gain.setValueAtTime(0, now);
+      toGain.gain.linearRampToValueAtTime(1, now + dur);
+
+      setTimeout(() => {
+        const oldEl = els[activeIdx];
+        oldEl.pause();
+        oldEl.currentTime = 0;
+        switchActiveTo(toIdx, nextIdx);
+        transitioning = false;
+      }, dur * 1000 + 50);
+    }).catch(() => {
+      transitioning = false;
+    });
+  }
+
+  function maybePrepareNext(el) {
+    if (transitioning || !el.duration || !isFinite(el.duration)) return;
+    const remaining = el.duration - el.currentTime;
+    if (crossfadeDuration > 0) {
+      if (remaining <= crossfadeDuration) startCrossfade();
+    } else {
+      if (remaining <= 1.2) preloadGapless();
+    }
+  }
+
+  function onEnded(e) {
+    const el = e.currentTarget;
+    if (el !== getActive() || transitioning) return;
+
     if (repeatOn) {
-      audio.currentTime = 0;
-      audio.play();
+      el.currentTime = 0;
+      el.play();
       return;
     }
+
+    if (checkSleepAtEnd()) return;
+
+    if (crossfadeDuration === 0 && gaplessPreloaded && pendingNextIndex !== null) {
+      // Next track is already buffered on the inactive element — swap
+      // with essentially no gap instead of loading it from scratch.
+      const nextIdx = pendingNextIndex;
+      const toIdx = 1 - activeIdx;
+      const toEl = els[toIdx];
+      switchActiveTo(toIdx, nextIdx);
+      toEl.currentTime = 0;
+      toEl.play().then(() => setPlayingState(true)).catch(() => {});
+      return;
+    }
+
     if (shuffleOn) shuffleHistory.push(currentIndex);
     const next = getNextIndex();
     if (next !== -1) {
@@ -348,37 +848,53 @@
     } else {
       setPlayingState(false);
     }
-  });
+  }
 
-  audio.addEventListener('loadedmetadata', () => {
-    durationTimeEl.textContent = formatTime(audio.duration);
-    if (currentIndex !== -1) {
-      tracks[currentIndex].duration = audio.duration;
+  function onLoadedMetadata(e) {
+    const el = e.currentTarget;
+    if (el !== getActive()) return;
+    durationTimeEl.textContent = formatTime(el.duration);
+    if (currentIndex !== -1 && tracks[currentIndex]) {
+      tracks[currentIndex].duration = el.duration;
       renderPlaylist();
     }
-  });
+  }
 
-  audio.addEventListener('timeupdate', () => {
-    currentTimeEl.textContent = formatTime(audio.currentTime);
-    if (audio.duration) {
-      progressFill.style.width = (audio.currentTime / audio.duration * 100) + '%';
+  function onTimeUpdate(e) {
+    const el = e.currentTarget;
+    if (el !== getActive()) return;
+    currentTimeEl.textContent = formatTime(el.currentTime);
+    if (el.duration) {
+      progressFill.style.width = (el.currentTime / el.duration * 100) + '%';
     }
-  });
+    updateMediaSessionPosition(el);
+    maybePrepareNext(el);
+  }
 
-  audio.addEventListener('play', () => setPlayingState(true));
-  audio.addEventListener('pause', () => setPlayingState(false));
+  function onPlay(e) { if (e.currentTarget === getActive()) setPlayingState(true); }
+  function onPause(e) { if (e.currentTarget === getActive()) setPlayingState(false); }
+
+  els.forEach(el => {
+    el.addEventListener('ended', onEnded);
+    el.addEventListener('loadedmetadata', onLoadedMetadata);
+    el.addEventListener('timeupdate', onTimeUpdate);
+    el.addEventListener('play', onPlay);
+    el.addEventListener('pause', onPause);
+  });
 
   progressWrap.addEventListener('click', (e) => {
-    if (!audio.duration) return;
+    const el = getActive();
+    if (!el.duration) return;
     const rect = progressWrap.getBoundingClientRect();
     const pct = (e.clientX - rect.left) / rect.width;
-    audio.currentTime = pct * audio.duration;
+    el.currentTime = pct * el.duration;
   });
 
   volumeSlider.addEventListener('input', (e) => {
-    audio.volume = parseFloat(e.target.value);
+    const v = parseFloat(e.target.value);
+    els.forEach(el => { el.volume = v; });
   });
-  audio.volume = parseFloat(volumeSlider.value);
+  els.forEach(el => { el.volume = parseFloat(volumeSlider.value); });
 
   // Keyboard shortcuts
   document.addEventListener('keydown', (e) => {
@@ -393,7 +909,131 @@
     }
   });
 
+  // ---- Media Session API (controles no SO / lock screen / notificação) ----
+
+  function setupMediaSession() {
+    if (!('mediaSession' in navigator)) return;
+    navigator.mediaSession.setActionHandler('play', () => playBtn.click());
+    navigator.mediaSession.setActionHandler('pause', () => playBtn.click());
+    navigator.mediaSession.setActionHandler('previoustrack', () => prevBtn.click());
+    navigator.mediaSession.setActionHandler('nexttrack', () => nextBtn.click());
+    navigator.mediaSession.setActionHandler('seekto', (details) => {
+      if (details.seekTime != null) getActive().currentTime = details.seekTime;
+    });
+  }
+
+  function updateMediaSessionMetadata(track) {
+    if (!('mediaSession' in navigator) || !track) return;
+    navigator.mediaSession.metadata = new MediaMetadata({
+      title: track.name,
+      artist: 'Plinq',
+    });
+  }
+
+  function updateMediaSessionPosition(el) {
+    if (!('mediaSession' in navigator) || !('setPositionState' in navigator.mediaSession)) return;
+    if (!el.duration || !isFinite(el.duration)) return;
+    try {
+      navigator.mediaSession.setPositionState({
+        duration: el.duration,
+        playbackRate: el.playbackRate,
+        position: el.currentTime,
+      });
+    } catch (e) {}
+  }
+
+  setupMediaSession();
   renderPlaylist();
+
+  // Public bridge used by premium.js (Descobrir tab) to queue remote
+  // (Jamendo) tracks into this same player, switching tabs back to Player.
+  window.PlinqPlayer = {
+    pause() {
+      pauseAudio();
+    },
+
+    playRemoteTracks(remoteTracks, startIndex) {
+      if (!Array.isArray(remoteTracks) || remoteTracks.length === 0) return;
+      const base = tracks.length;
+      remoteTracks.forEach(rt => {
+        tracks.push({ file: null, url: rt.url, name: rt.name, duration: rt.duration || 0 });
+      });
+      renderPlaylist();
+      loadTrack(base + (startIndex || 0), true);
+    },
+
+    // Usado pelo persistence.js para adicionar arquivos vindos de
+    // File System Access API (mesma validação/ordenação de sempre).
+    addFiles(fileList) {
+      addFilesToPlaylist(fileList);
+    },
+
+    // Usado pelo persistence.js para salvar o estado a cada poucos
+    // segundos e ao fechar a aba.
+    getState() {
+      if (currentIndex === -1 || !tracks[currentIndex]) return null;
+      return {
+        trackName: tracks[currentIndex].name,
+        position: getActive().currentTime || 0,
+        volume: parseFloat(volumeSlider.value),
+        shuffle: shuffleOn,
+        repeat: repeatOn,
+      };
+    },
+
+    // Usado pelo persistence.js para retomar a sessão anterior.
+    restoreState(state) {
+      if (!state) return;
+      if (typeof state.volume === 'number') {
+        volumeSlider.value = String(state.volume);
+        els.forEach(el => { el.volume = state.volume; });
+      }
+      if (state.shuffle) {
+        shuffleOn = true;
+        shuffleBtn.classList.add('on');
+      }
+      if (state.repeat) {
+        repeatOn = true;
+        repeatBtn.classList.add('on');
+      }
+      if (state.trackName) {
+        const idx = tracks.findIndex(t => t.name === state.trackName);
+        if (idx !== -1) {
+          loadTrack(idx, false);
+          const el = getActive();
+          const seek = () => {
+            el.currentTime = state.position || 0;
+            el.removeEventListener('loadedmetadata', seek);
+          };
+          el.addEventListener('loadedmetadata', seek);
+        }
+      }
+    },
+
+    // Usado pelo playlists.js para salvar a playlist ativa antes de trocar.
+    // Retorna { file } (não a url — url de blob local é revogada na troca).
+    getTracksSnapshot() {
+      return tracks.map(t => ({ file: t.file, url: t.url, name: t.name, duration: t.duration }));
+    },
+
+    // Usado pelo playlists.js para carregar outra playlist no player.
+    // Recria as blob URLs dos arquivos locais (as antigas já foram revogadas).
+    replaceTracks(newTracks) {
+      tracks.forEach(t => { if (t.file) URL.revokeObjectURL(t.url); });
+      resetInactive();
+      tracks = (newTracks || []).map(t => {
+        if (t.file) return { file: t.file, url: URL.createObjectURL(t.file), name: t.name, duration: t.duration };
+        return { file: null, url: t.url, name: t.name, duration: t.duration };
+      });
+      resetPlayerToEmpty();
+      renderPlaylist();
+    },
+
+    // Usado pelo playlists.js pra sair do modo de seleção ao trocar de playlist.
+    exitSelectionMode() {
+      setSelectionMode(false);
+    },
+  };
 })();
 
 
