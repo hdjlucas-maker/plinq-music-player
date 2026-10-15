@@ -42,8 +42,29 @@
   const authTabRegister = $('auth-tab-register');
   const loginForm = $('login-form');
   const registerForm = $('register-form');
+  const loginSaveAccess = $('login-save-access');
+  const registerSaveAccess = $('register-save-access');
   const loginError = $('login-error');
   const registerError = $('register-error');
+
+  function downloadAccessFile(name, email, password) {
+    const contents = [
+      'Plinq — dados de acesso',
+      `Nome: ${name || ''}`,
+      `E-mail (login): ${email}`,
+      `Senha: ${password}`,
+      '',
+      'Este arquivo contém sua senha em texto legível. Guarde-o em local privado.'
+    ].join('\n');
+    const blobUrl = URL.createObjectURL(new Blob([contents], { type: 'text/plain;charset=utf-8' }));
+    const link = document.createElement('a');
+    link.href = blobUrl;
+    link.download = 'plinq-dados-de-acesso.txt';
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
+  }
 
   let currentUser = null;
   let subscription = null; // { status: 'trial'|'active'|'expired', daysLeft }
@@ -89,19 +110,22 @@
   loginForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     loginError.textContent = '';
+    const email = $('login-email').value;
+    const password = $('login-password').value;
     try {
       const res = await fetch('/api/auth-login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'same-origin',
         body: JSON.stringify({
-          email: $('login-email').value,
-          password: $('login-password').value,
+          email,
+          password,
         }),
       });
       const data = await res.json();
       if (!res.ok) { loginError.textContent = data.error || 'Erro ao entrar.'; return; }
       currentUser = data;
+      if (loginSaveAccess.checked) downloadAccessFile(data.name, email, password);
       window.dispatchEvent(new CustomEvent('plinq:auth-changed'));
       closeAuthModal();
       await refreshDiscoverTab();
@@ -113,21 +137,25 @@
   registerForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     registerError.textContent = '';
+    const name = $('register-name').value;
+    const email = $('register-email').value;
+    const password = $('register-password').value;
     try {
       const res = await fetch('/api/auth-register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'same-origin',
         body: JSON.stringify({
-          name: $('register-name').value,
-          email: $('register-email').value,
-          password: $('register-password').value,
+          name,
+          email,
+          password,
           cpf: $('register-cpf').value,
         }),
       });
       const data = await res.json();
       if (!res.ok) { registerError.textContent = data.error || 'Erro ao criar conta.'; return; }
       currentUser = data;
+      if (registerSaveAccess.checked) downloadAccessFile(name, email, password);
       window.dispatchEvent(new CustomEvent('plinq:auth-changed'));
       closeAuthModal();
       await refreshDiscoverTab();

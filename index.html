@@ -193,6 +193,8 @@
     <form id="login-form" class="auth-form">
       <input type="email" id="login-email" placeholder="E-mail" autocomplete="email" required>
       <input type="password" id="login-password" placeholder="Senha" autocomplete="current-password" required>
+      <label class="auth-save-row"><input type="checkbox" id="login-save-access"> Baixar meus dados de acesso neste aparelho</label>
+      <div class="auth-note">O arquivo inclui sua senha em texto legível. Guarde-o em local privado e não o compartilhe.</div>
       <div class="auth-error" id="login-error"></div>
       <button type="submit" class="add-files-btn">Entrar</button>
     </form>
@@ -202,6 +204,8 @@
       <input type="email" id="register-email" placeholder="E-mail" autocomplete="email" required>
       <input type="password" id="register-password" placeholder="Senha (mín. 6 caracteres)" autocomplete="new-password" required minlength="6">
       <input type="text" id="register-cpf" placeholder="CPF (só números)" inputmode="numeric" maxlength="14" required>
+      <label class="auth-save-row"><input type="checkbox" id="register-save-access"> Baixar meus dados de acesso neste aparelho</label>
+      <div class="auth-note">O arquivo inclui sua senha em texto legível. Guarde-o em local privado e não o compartilhe.</div>
       <div class="auth-note">Pedimos CPF só para liberar 1 teste grátis de 30 dias por pessoa.</div>
       <div class="auth-error" id="register-error"></div>
       <button type="submit" class="add-files-btn">Criar conta e começar teste grátis</button>
