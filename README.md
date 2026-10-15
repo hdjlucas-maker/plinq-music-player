@@ -1,8 +1,8 @@
 # Plinq 🎵
 
-**Plinq** é um player de música web simples, leve e sem distrações — inspirado na simplicidade dos players clássicos, mas com visual moderno.
+**Plinq**, criado por **devlucas**, é um player de música web com versão Android em preparação — simples, leve e sem distrações, inspirado na simplicidade dos players clássicos, mas com visual moderno.
 
-Toque suas próprias músicas direto do navegador, sem anúncios, sem cadastro e sem precisar de internet.
+O app inclui cadastro e login, 30 dias de teste grátis e, depois, acesso por R$ 9,90 a cada 30 dias via InfinitePay. A conta do proprietário tem acesso permanente. O pagamento não é renovado automaticamente.
 
 ---
 
@@ -17,23 +17,27 @@ Toque suas próprias músicas direto do navegador, sem anúncios, sem cadastro e
 - 📊 Visualizador de áudio animado
 - 👍 Botão de curtidas (contador público, sem login)
 - 🔒 100% local — os arquivos de música nunca saem do seu dispositivo
+- 👤 Cadastro e login disponíveis na web e no app Android
+- ⏳ Trial de 30 dias, com bloqueio do player quando o acesso expira
+- 💳 Pagamento de R$ 9,90 por 30 dias via InfinitePay
+- 👑 Acesso permanente para a conta do proprietário
 
 ---
 
 ## 🖥️ Como usar
 
-1. Acesse o link do projeto (veja abaixo)
-2. Toque em **"Adicionar músicas"** para escolher arquivos, ou em **"Adicionar pasta"** para importar uma pasta inteira de uma vez
-3. Clique em uma música da playlist para tocar
-4. Use os controles para pausar, avançar, ativar modo aleatório ou repetição
+1. Acesse a versão web. O APK Android atualizado ainda aguarda compilação e distribuição.
+2. Crie uma conta com e-mail, senha e CPF; o período grátis começa no primeiro acesso.
+3. Toque em **"Adicionar músicas"** para escolher arquivos ou em **"Adicionar pasta"** para importar uma pasta inteira.
+4. Após os 30 dias, pague R$ 9,90 via InfinitePay para liberar os próximos 30 dias.
 
-> **Importante:** o Plinq toca apenas arquivos de áudio que já estão no seu dispositivo. Ele não baixa, transmite nem hospeda músicas de terceiros — por isso é 100% gratuito e livre de problemas de direitos autorais.
+> **Importante:** o player local toca arquivos que já estão no seu dispositivo. A biblioteca online usa faixas da Jamendo. O período de teste e a assinatura são controlados pela conta Plinq.
 
 ---
 
 ## 🚀
 
-Acesse: https://hdjlucas-maker.github.io/plinq-music-player
+Acesse: https://plinq-music-player.pages.dev
 
 ---
 
@@ -42,6 +46,9 @@ Acesse: https://hdjlucas-maker.github.io/plinq-music-player
 - HTML5
 - CSS3
 - JavaScript (vanilla, sem frameworks ou dependências externas)
+- Cloudflare Pages Functions, D1 e KV para contas e assinaturas
+- InfinitePay para checkout e confirmação de pagamento
+- Capacitor para empacotar a experiência web como app Android
 - [Web Audio API](https://developer.mozilla.org/pt-BR/docs/Web/API/Web_Audio_API) para o visualizador
 - [CountAPI](https://countapi.xyz) para o contador de curtidas
 
@@ -51,16 +58,23 @@ Acesse: https://hdjlucas-maker.github.io/plinq-music-player
 
 ```
 plinq-music-player/
-├── index.html    → estrutura da página
-├── style.css     → estilos visuais (skin preta/ciano)
-└── script.js     → lógica do player e contador de curtidas
+├── index.html, style.css, script.js → interface web e player
+├── functions/                       → login, trial, checkout e webhook
+├── www/                             → cópia preparada para o app Android
+├── android/                         → projeto nativo Capacitor/Gradle
+└── scripts/sync-android-web.js      → sincroniza web → Android
 ```
+
+Depois de alterar os arquivos da aplicação web, rode `npm run android:sync`.
+Esse comando atualiza `www/` e os assets usados pelo app Android antes do commit.
 
 ---
 
 ## 🗺️ Roadmap
 
-- [ ] Versão Android (Flutter) com reprodução em segundo plano
+- [ ] Gerar e distribuir o APK assinado (requer Android SDK 36)
+- [ ] Validar o APK em aparelho físico e concluir uma compra real de ponta a ponta
+- [ ] Recuperação segura de senha por e-mail
 - [ ] Equalizador de áudio
 - [ ] Leitura automática da biblioteca de música do dispositivo
 
