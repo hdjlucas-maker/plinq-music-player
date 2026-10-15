@@ -9,7 +9,7 @@ const CORS_HEADERS = {
 
 // Plano único do Plinq: R$ 9,90/mês (ver DECISIONS.md).
 const PLANS = {
-  monthly: { price: 990, description: 'Plinq Premium - Assinatura Mensal' }, // em centavos
+  monthly: { price: 990, description: 'Plinq Premium - 30 dias de acesso' }, // em centavos
 };
 
 function jsonResponse(data, status = 200) {
