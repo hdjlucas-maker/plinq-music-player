@@ -57,12 +57,16 @@
       analyser.channelInterpretation = 'discrete';
 
       sourceNode = audioCtx.createMediaElementSource(audio);
+      // MediaElementAudioSourceNode replaces direct element output. Keep a
+      // direct route until the visualizer route is fully connected.
+      sourceNode.connect(audioCtx.destination);
       sourceNode.channelCount = 2;
       sourceNode.channelCountMode = 'explicit';
       sourceNode.channelInterpretation = 'discrete';
 
       sourceNode.connect(analyser);
       analyser.connect(audioCtx.destination);
+      sourceNode.disconnect(audioCtx.destination);
       dataArray = new Uint8Array(analyser.frequencyBinCount);
     } catch (e) {
       // Visualizer unsupported, fail silently
@@ -250,8 +254,6 @@
     playIcon.innerHTML = playing ? ICON_PAUSE : ICON_PLAY;
     playBtn.setAttribute('aria-label', playing ? 'Pausar' : 'Reproduzir');
     if (playing) {
-      setupAudioContext();
-      if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
       if (!rafId) animateVisualizer();
     } else {
       stopVisualizer();
@@ -264,7 +266,14 @@
       loadTrack(0, true);
       return;
     }
-    audio.play().then(() => setPlayingState(true)).catch(() => {});
+    setupAudioContext();
+    const resumePromise = audioCtx && audioCtx.state === 'suspended'
+      ? audioCtx.resume().catch(() => {})
+      : Promise.resolve();
+    const playPromise = audio.play();
+    Promise.all([resumePromise, playPromise])
+      .then(() => setPlayingState(true))
+      .catch(() => {});
   }
 
   function pauseAudio() {

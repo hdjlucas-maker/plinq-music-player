@@ -140,12 +140,20 @@
       node.connect(analyser);
       analyser.connect(audioCtx.destination);
 
+      // Create each media source only after the rest of the effect graph is
+      // ready. A MediaElementAudioSourceNode replaces the element's direct
+      // output, so connect it to the destination immediately as a safe path.
+      const sources = els.map(el => audioCtx.createMediaElementSource(el));
+
       // Each <audio> element gets its own source -> gain node, both summed
       // into masterGain. This is what makes crossfade (independent volume
       // ramps per element) and gapless preload (silent buffering on the
       // inactive element) possible.
-      gains = els.map(el => {
-        const src = audioCtx.createMediaElementSource(el);
+      gains = els.map((el, i) => {
+        const src = sources[i];
+        // Keep a direct route until the complete effects route is connected.
+        // If setup fails partway, audio still reaches the speakers.
+        src.connect(audioCtx.destination);
         src.channelCount = 2;
         src.channelCountMode = 'explicit';
         src.channelInterpretation = 'discrete';
@@ -153,6 +161,7 @@
         gain.gain.value = 1;
         src.connect(gain);
         gain.connect(masterGain);
+        src.disconnect(audioCtx.destination);
         return gain;
       });
 
@@ -471,8 +480,6 @@
     playIcon.innerHTML = playing ? ICON_PAUSE : ICON_PLAY;
     playBtn.setAttribute('aria-label', playing ? 'Pausar' : 'Reproduzir');
     if (playing) {
-      setupAudioContext();
-      if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
       if (!rafId) animateVisualizer();
     } else {
       stopVisualizer();
@@ -485,7 +492,18 @@
       loadTrack(0, true);
       return;
     }
-    getActive().play().then(() => setPlayingState(true)).catch(() => {});
+    // Resume Web Audio synchronously from the user's play gesture. Mobile
+    // browsers may otherwise keep the connected media element muted.
+    setupAudioContext();
+    const resumePromise = audioCtx && audioCtx.state === 'suspended'
+      ? audioCtx.resume().catch(() => {})
+      : Promise.resolve();
+    // Call play in the same user gesture; some mobile browsers reject it if
+    // we wait for AudioContext.resume() to finish first.
+    const playPromise = getActive().play();
+    Promise.all([resumePromise, playPromise])
+      .then(() => setPlayingState(true))
+      .catch(() => {});
   }
 
   function pauseAudio() {
