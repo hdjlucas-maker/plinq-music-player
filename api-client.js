@@ -1,7 +1,12 @@
 // O web app usa sessão same-origin. O APK usa token bearer para falar com
 // as Pages Functions sem depender de cookies de terceiros no WebView Android.
 (function () {
-  const nativeApp = window.PlinqNativeApp === true;
+  const capacitorNative = window.Capacitor
+    && typeof window.Capacitor.isNativePlatform === 'function'
+    && window.Capacitor.isNativePlatform();
+  const nativeApp = window.PlinqNativeApp === true
+    || capacitorNative
+    || window.location.protocol === 'capacitor:';
   const apiOrigin = 'https://plinq-music-player.pages.dev';
   const tokenKey = 'plinq_session_token';
 

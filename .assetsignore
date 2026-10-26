@@ -1,0 +1,25 @@
+# Arquivos que nunca devem ser publicados como assets estáticos.
+# O Cloudflare Pages continua executando functions/ separadamente.
+
+.git
+.github
+.gitignore
+.assetsignore
+*.md
+android
+www
+db
+scripts
+functions
+node_modules
+package.json
+package-lock.json
+wrangler.jsonc
+capacitor.config.json
+PLINQ_OWNER_CREDENTIALS.txt
+PLINQ_ANDROID_SIGNING.txt
+android/keystore.properties
+*.jks
+*.keystore
+.env
+.env.*

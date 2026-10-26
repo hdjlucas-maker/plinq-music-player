@@ -10,14 +10,16 @@ const files = [
   'script.js',
   'persistence.js',
   'api-client.js',
-  'account-gate.js',
   'premium.js',
+  'favicon.svg',
 ];
 
 fs.mkdirSync(webDir, { recursive: true });
 for (const name of files) {
   fs.copyFileSync(path.join(root, name), path.join(webDir, name));
 }
+// Arquivo removido do player local; mantê-lo em www/ só criaria código morto.
+fs.rmSync(path.join(webDir, 'account-gate.js'), { force: true });
 
 const indexPath = path.join(webDir, 'index.html');
 let html = fs.readFileSync(indexPath, 'utf8');
@@ -29,4 +31,4 @@ if (!html.includes(apiClientTag)) {
 html = html.replace(apiClientTag, `<script>window.PlinqNativeApp = true;</script>\n${apiClientTag}`);
 fs.writeFileSync(indexPath, html);
 
-execFileSync('npx', ['cap', 'copy', 'android'], { cwd: root, stdio: 'inherit' });
+execFileSync('npx', ['--no-install', 'cap', 'copy', 'android'], { cwd: root, stdio: 'inherit' });

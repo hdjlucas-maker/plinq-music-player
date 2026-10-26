@@ -21,6 +21,12 @@ export async function onRequest({ request, next }) {
 
   const response = await next();
   const responseHeaders = new Headers(response.headers);
+
+  // Respostas de API carregam dado de sessão/assinatura: nunca podem ser cacheadas
+  // por proxy ou pelo navegador (nem servidas como HTML).
+  responseHeaders.set("Cache-Control", "no-store");
+  responseHeaders.set("X-Content-Type-Options", "nosniff");
+
   for (const [name, value] of headers) {
     if (name.toLowerCase() === "vary" && responseHeaders.has("Vary")) {
       responseHeaders.set("Vary", `${responseHeaders.get("Vary")}, ${value}`);

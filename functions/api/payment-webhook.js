@@ -7,7 +7,7 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 function jsonResponse(data, status = 200) {
   return new Response(JSON.stringify(data), {
     status,
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
   });
 }
 
@@ -66,7 +66,17 @@ export async function onRequestPost(context) {
     }
 
     const kvKey = `sub:${userId}`;
+    // Marca por transação: lembra TODAS as transações já aplicadas, não só a
+    // última. Sem isso, o reenvigo de uma transação antiga estenderia o acesso
+    // de novo. TTL de 45 dias cobre com folga a janela de reenvio da InfinitePay.
+    const paidKey = `paid:${transaction_nsu}`;
     const now = Date.now();
+
+    const alreadyPaid = await env.SUBSCRIPTIONS.get(paidKey);
+    if (alreadyPaid !== null) {
+      return jsonResponse({ success: true, message: null });
+    }
+
     const existing = (await env.SUBSCRIPTIONS.get(kvKey, { type: 'json' })) || {
       userId,
       trialStart: now,
@@ -93,9 +103,14 @@ export async function onRequestPost(context) {
     };
 
     await env.SUBSCRIPTIONS.put(kvKey, JSON.stringify(updated));
+    await env.SUBSCRIPTIONS.put(paidKey, String(now), {
+      expirationTtl: 60 * 60 * 24 * 45,
+    });
 
     return jsonResponse({ success: true, message: null });
   } catch (err) {
-    return jsonResponse({ success: false, message: `Erro no webhook: ${String(err)}` }, 400);
+    console.error("payment-webhook:", err);
+    // Mensagem genérica: nunca expor detalhes internos do erro ao cliente.
+    return jsonResponse({ success: false, message: 'Erro interno ao processar o pagamento' }, 500);
   }
 }

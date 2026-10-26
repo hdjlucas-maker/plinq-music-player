@@ -1,23 +1,4 @@
 (function () {
-  // TODO: se algum dia migrar pra OAuth de usuário da Jamendo, o client_secret
-  // entra só no backend — NUNCA aqui. A busca pública de faixas só precisa do client_id.
-  const JAMENDO_CLIENT_ID = 'a20d899c';
-
-  const GENRES = [
-    { label: 'Pop', tag: 'pop', a: '#ff6fa3', b: '#7b2ff7' },
-    { label: 'Rock', tag: 'rock', a: '#ff5e5e', b: '#7a1f1f' },
-    { label: 'Eletrônica', tag: 'electronic', a: '#3FE7FF', b: '#1a5c66' },
-    { label: 'Hip Hop', tag: 'hiphop', a: '#ffb347', b: '#7a3d00' },
-    { label: 'Jazz', tag: 'jazz', a: '#f7d774', b: '#7a5c00' },
-    { label: 'Clássica', tag: 'classical', a: '#c9c9ff', b: '#3d3d7a' },
-    { label: 'Lo-fi', tag: 'lounge', a: '#b48cff', b: '#3d1f7a' },
-    { label: 'Ambiente', tag: 'ambient', a: '#8cffe0', b: '#1f7a63' },
-    { label: 'Reggae', tag: 'reggae', a: '#8cff8c', b: '#1f7a1f' },
-    { label: 'Metal', tag: 'metal', a: '#adadad', b: '#2b2b2b' },
-    { label: 'Funk', tag: 'funk', a: '#ff9ff3', b: '#7a1f6e' },
-    { label: 'Acústico', tag: 'acousticguitar', a: '#e0c097', b: '#5c3d1f' },
-  ];
-
   const $ = (id) => document.getElementById(id);
 
   const tabBtnPlayer = $('tab-btn-player');
@@ -30,11 +11,6 @@
   const discoverLockedText = $('discover-locked-text');
   const discoverUnlockBtn = $('discover-unlock-btn');
   const discoverContent = $('discover-content');
-  const genreGrid = $('genre-grid');
-  const genreResults = $('genre-results');
-  const genreResultsTitle = $('genre-results-title');
-  const genreTrackList = $('genre-track-list');
-  const genreBackBtn = $('genre-back-btn');
 
   const authModal = $('auth-modal');
   const authModalClose = $('auth-modal-close');
@@ -42,32 +18,12 @@
   const authTabRegister = $('auth-tab-register');
   const loginForm = $('login-form');
   const registerForm = $('register-form');
-  const loginSaveAccess = $('login-save-access');
-  const registerSaveAccess = $('register-save-access');
   const loginError = $('login-error');
   const registerError = $('register-error');
 
-  function downloadAccessFile(name, email, password) {
-    const contents = [
-      'Plinq — dados de acesso',
-      `Nome: ${name || ''}`,
-      `E-mail (login): ${email}`,
-      `Senha: ${password}`,
-      '',
-      'Este arquivo contém sua senha em texto legível. Guarde-o em local privado.'
-    ].join('\n');
-    const blobUrl = URL.createObjectURL(new Blob([contents], { type: 'text/plain;charset=utf-8' }));
-    const link = document.createElement('a');
-    link.href = blobUrl;
-    link.download = 'plinq-dados-de-acesso.txt';
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
-  }
-
   let currentUser = null;
   let subscription = null; // { status: 'trial'|'active'|'expired', daysLeft }
+  let lastFocusedElement = null;
 
   // ---- Tabs ----
   function showTab(name) {
@@ -82,26 +38,72 @@
   tabBtnDiscover.addEventListener('click', () => showTab('discover'));
 
   // ---- Auth modal ----
-  function openAuthModal(tab) {
-    authModal.classList.remove('hidden');
-    setAuthTab(tab || 'login');
+  function getFocusableElements(container) {
+    return Array.from(container.querySelectorAll(
+      'button:not([disabled]), input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), a[href], [tabindex]:not([tabindex="-1"])'
+    )).filter((el) => el.offsetParent !== null);
   }
+
+  function focusFirstAuthField(tab) {
+    const form = tab === 'register' ? registerForm : loginForm;
+    const field = form.querySelector('input');
+    if (field) field.focus();
+  }
+
+  function openAuthModal(tab) {
+    lastFocusedElement = document.activeElement;
+    authModal.classList.remove('hidden');
+    authModal.setAttribute('aria-hidden', 'false');
+    document.body.classList.add('modal-open');
+    setAuthTab(tab || 'login');
+    requestAnimationFrame(() => focusFirstAuthField(tab || 'login'));
+  }
+
   function closeAuthModal() {
     authModal.classList.add('hidden');
+    authModal.setAttribute('aria-hidden', 'true');
+    document.body.classList.remove('modal-open');
     loginError.textContent = '';
     registerError.textContent = '';
+    if (lastFocusedElement && typeof lastFocusedElement.focus === 'function') {
+      lastFocusedElement.focus();
+    }
+    lastFocusedElement = null;
   }
+
   function setAuthTab(tab) {
     const isLogin = tab === 'login';
     authTabLogin.classList.toggle('active', isLogin);
     authTabRegister.classList.toggle('active', !isLogin);
+    authTabLogin.setAttribute('aria-selected', isLogin ? 'true' : 'false');
+    authTabRegister.setAttribute('aria-selected', isLogin ? 'false' : 'true');
     loginForm.classList.toggle('hidden', !isLogin);
     registerForm.classList.toggle('hidden', isLogin);
   }
+
   authTabLogin.addEventListener('click', () => setAuthTab('login'));
   authTabRegister.addEventListener('click', () => setAuthTab('register'));
   authModalClose.addEventListener('click', closeAuthModal);
   authModal.addEventListener('click', (e) => { if (e.target === authModal) closeAuthModal(); });
+  authModal.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      closeAuthModal();
+      return;
+    }
+    if (e.key !== 'Tab') return;
+    const focusable = getFocusableElements(authModal);
+    if (focusable.length === 0) return;
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    if (e.shiftKey && document.activeElement === first) {
+      e.preventDefault();
+      last.focus();
+    } else if (!e.shiftKey && document.activeElement === last) {
+      e.preventDefault();
+      first.focus();
+    }
+  });
   discoverUnlockBtn.addEventListener('click', () => {
     if (!currentUser) openAuthModal('register');
     else startCheckout();
@@ -125,7 +127,6 @@
       if (!res.ok) { loginError.textContent = data.error || 'Erro ao entrar.'; return; }
       window.PlinqApi.saveSessionToken(data.sessionToken);
       currentUser = data;
-      if (loginSaveAccess.checked) downloadAccessFile(data.name, email, password);
       window.dispatchEvent(new CustomEvent('plinq:auth-changed'));
       closeAuthModal();
       await refreshDiscoverTab();
@@ -155,7 +156,6 @@
       if (!res.ok) { registerError.textContent = data.error || 'Erro ao criar conta.'; return; }
       window.PlinqApi.saveSessionToken(data.sessionToken);
       currentUser = data;
-      if (registerSaveAccess.checked) downloadAccessFile(name, email, password);
       window.dispatchEvent(new CustomEvent('plinq:auth-changed'));
       closeAuthModal();
       await refreshDiscoverTab();
@@ -168,6 +168,10 @@
   async function loadSession() {
     try {
       const res = await window.PlinqApi.request('/api/auth-me');
+      if (!res.ok) {
+        currentUser = null;
+        return;
+      }
       const data = await res.json();
       currentUser = data.user || null;
     } catch (err) {
@@ -234,7 +238,6 @@
 
     discoverLocked.classList.add('hidden');
     discoverContent.classList.remove('hidden');
-    renderGenreGrid();
   }
 
   async function startCheckout() {
@@ -256,77 +259,15 @@
     }
   }
 
-  // ---- Discover: genre grid + Jamendo ----
-  function renderGenreGrid() {
-    if (genreGrid.childElementCount > 0) return; // já montado
-    genreGrid.innerHTML = '';
-    GENRES.forEach((g) => {
-      const card = document.createElement('div');
-      card.className = 'genre-card';
-      card.style.setProperty('--genre-a', g.a);
-      card.style.setProperty('--genre-b', g.b);
-      card.textContent = g.label;
-      card.addEventListener('click', () => openGenre(g));
-      genreGrid.appendChild(card);
-    });
-  }
-
-  async function openGenre(genre) {
-    genreResultsTitle.textContent = genre.label;
-    genreTrackList.innerHTML = '<li style="padding:14px;color:var(--text-mute);">Carregando…</li>';
-    genreGrid.classList.add('hidden');
-    genreResults.classList.remove('hidden');
-
-    try {
-      const url = `https://api.jamendo.com/v3.0/tracks/?client_id=${JAMENDO_CLIENT_ID}&format=json&limit=30&tags=${encodeURIComponent(genre.tag)}&audioformat=mp31&include=musicinfo`;
-      const res = await fetch(url);
-      const data = await res.json();
-      const results = (data.results || []).filter(t => t.audio);
-
-      if (results.length === 0) {
-        genreTrackList.innerHTML = '<li style="padding:14px;color:var(--text-mute);">Nenhuma faixa encontrada nesse gênero agora.</li>';
-        return;
-      }
-
-      genreTrackList.innerHTML = '';
-      results.forEach((t, i) => {
-        const li = document.createElement('li');
-        li.innerHTML = `<div class="track-info"><div class="t-name">${escapeHtml(t.name)} — ${escapeHtml(t.artist_name)}</div></div>`;
-        li.style.cursor = 'pointer';
-        li.addEventListener('click', () => {
-          const remoteTracks = results.map(rt => ({
-            name: `${rt.name} — ${rt.artist_name}`,
-            url: rt.audio,
-            duration: rt.duration || 0,
-          }));
-          if (window.PlinqPlayer) window.PlinqPlayer.playRemoteTracks(remoteTracks, i);
-          showTab('player');
-        });
-        genreTrackList.appendChild(li);
-      });
-    } catch (err) {
-      genreTrackList.innerHTML = '<li style="padding:14px;color:var(--text-mute);">Erro ao buscar faixas. Tente novamente.</li>';
-    }
-  }
-
-  genreBackBtn.addEventListener('click', () => {
-    genreResults.classList.add('hidden');
-    genreGrid.classList.remove('hidden');
+  // A busca online ainda não tem fonte definida (ver README, "Pendências").
+  // A aba "Ouvir Online" mostra apenas o estado de conta/assinatura até uma
+  // nova fonte de catálogo ser escolhida e implementada.
+  const discoverBrowseBtn = $('discover-browse-btn');
+  discoverBrowseBtn.addEventListener('click', () => {
+    showTab('player');
+    const fileInput = document.getElementById('file-input');
+    if (fileInput) fileInput.click();
   });
-
-  function escapeHtml(str) {
-    return String(str || '').replace(/[&<>"']/g, (c) => ({
-      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
-    }[c]));
-  }
-
-  // Exposto pro account-gate.js conseguir checar login e abrir o mesmo
-  // modal de conta, sem duplicar lógica de auth.
-  window.PlinqAuth = {
-    openAuthModal,
-    isLoggedIn: () => !!currentUser,
-    startCheckout,
-  };
 
   // Handle redirect back from InfinitePay checkout (?paid=1)
   if (new URLSearchParams(window.location.search).get('paid') === '1') {

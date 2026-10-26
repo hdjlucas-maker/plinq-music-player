@@ -25,10 +25,13 @@ export async function hashPassword(password, saltHex) {
 }
 
 export async function verifyPassword(password, stored) {
+  if (typeof stored !== "string" || !stored.includes(":")) return false;
   const [saltHex, hashHex] = stored.split(":");
   const recomputed = await hashPassword(password, saltHex);
   return timingSafeEqual(recomputed.split(":")[1], hashHex);
 }
+
+export { timingSafeEqual };
 
 function hexToBytes(hex) {
   const bytes = new Uint8Array(hex.length / 2);
@@ -50,6 +53,9 @@ function timingSafeEqual(a, b) {
 // --- Sessão (JWT simplificado) ---
 
 export async function createSessionToken(payload, secret, expiresInSeconds = 60 * 60 * 24 * 30) {
+  if (!secret || typeof secret !== "string") {
+    throw new Error("AUTH_SECRET não configurado");
+  }
   const header = { alg: "HS256", typ: "JWT" };
   const body = { ...payload, exp: Math.floor(Date.now() / 1000) + expiresInSeconds };
 
@@ -66,7 +72,10 @@ export async function createSessionToken(payload, secret, expiresInSeconds = 60 
 }
 
 export async function verifySessionToken(token, secret) {
-  const parts = token.split(".");
+  // Sem segredo configurado, nenhuma sessão é válida — em vez de lançar erro.
+  if (!secret || typeof secret !== "string") return null;
+
+  const parts = String(token).split(".");
   if (parts.length !== 3) return null;
   const [headerB64, bodyB64, sigB64] = parts;
 
@@ -74,10 +83,19 @@ export async function verifySessionToken(token, secret) {
     "raw", encoder.encode(secret), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]
   );
   const expectedSig = await crypto.subtle.sign("HMAC", key, encoder.encode(`${headerB64}.${bodyB64}`));
-  if (base64url(new Uint8Array(expectedSig)) !== sigB64) return null;
+  // Comparação em tempo constante: não pode ceder tempo de resposta ao atacante.
+  if (!timingSafeEqual(base64url(new Uint8Array(expectedSig)), sigB64)) return null;
 
-  const payload = JSON.parse(decodeURIComponent(escape(atob(bodyB64.replace(/-/g, "+").replace(/_/g, "/")))));
+  let payload;
+  try {
+    payload = JSON.parse(decodeURIComponent(escape(atob(bodyB64.replace(/-/g, "+").replace(/_/g, "/")))));
+  } catch {
+    return null; // payload corrompido não pode derrubar a rota com 500
+  }
+
+  if (!payload || typeof payload !== "object") return null;
   if (payload.exp && payload.exp < Math.floor(Date.now() / 1000)) return null;
+  if (!payload.sub) return null;
 
   return payload;
 }

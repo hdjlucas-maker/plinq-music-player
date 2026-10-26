@@ -27,14 +27,35 @@ export function isValidCPF(cpf) {
   return digits === base9 + String(digit1) + String(digit2);
 }
 
-// Gera um hash determinístico do CPF (SHA-256) — permite checar duplicidade
-// sem guardar o número em texto puro no banco (mais seguro e mais alinhado com a LGPD).
-export async function hashCPF(cpf) {
-  const digits = (cpf || '').replace(/\D/g, '');
-  const encoder = new TextEncoder();
-  const data = encoder.encode('plinq_cpf_salt_v1:' + digits); // "sal" fixo só pra não bater com hash genérico de CPF
-  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-  return Array.from(new Uint8Array(hashBuffer))
+function toHex(buffer) {
+  return Array.from(new Uint8Array(buffer))
     .map((b) => b.toString(16).padStart(2, '0'))
     .join('');
+}
+
+// Forma antiga: SHA-256 com sal fixo. Mantida para validar contas já existentes.
+// NÃO alterar — mudaria o valor e faria CPFs antigos deixarem de ser reconhecidos,
+// permitindo um segundo cadastro de trial para a mesma pessoa.
+export async function legacyHashCPF(cpf) {
+  const digits = (cpf || '').replace(/\D/g, '');
+  const data = new TextEncoder().encode('plinq_cpf_salt_v1:' + digits);
+  return toHex(await crypto.subtle.digest('SHA-256', data));
+}
+
+// Forma atual: HMAC-SHA256 com a pimenta CPF_PEPPER (só no servidor).
+// Sem pepper, cai para a forma antiga para manter compatibilidade.
+export async function hashCPF(cpf, pepper) {
+  const digits = (cpf || '').replace(/\D/g, '');
+  if (!pepper) return legacyHashCPF(cpf);
+
+  const encoder = new TextEncoder();
+  const key = await crypto.subtle.importKey(
+    "raw",
+    encoder.encode(pepper),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"]
+  );
+  const signature = await crypto.subtle.sign("HMAC", key, encoder.encode(digits));
+  return "hmac:" + toHex(signature);
 }

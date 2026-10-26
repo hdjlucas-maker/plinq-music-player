@@ -1,7 +1,7 @@
 import { getUserFromRequest } from "../_lib/getSession.js";
 import { isOwner } from "../_lib/access.js";
 
-// Plano único do Plinq: R$ 9,90/mês (ver DECISIONS.md).
+// Plano único do Plinq: R$ 9,90 por 30 dias.
 const PLANS = {
   monthly: { price: 990, description: 'Plinq Premium - 30 dias de acesso' }, // em centavos
 };
@@ -9,7 +9,7 @@ const PLANS = {
 function jsonResponse(data, status = 200) {
   return new Response(JSON.stringify(data), {
     status,
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
   });
 }
 
@@ -41,6 +41,9 @@ export async function onRequestPost(context) {
     }
 
     const baseUrl = env.APP_BASE_URL || '';
+    if (!baseUrl) {
+      return jsonResponse({ error: 'APP_BASE_URL não configurado no servidor' }, 500);
+    }
     const { price, description } = PLANS[plan];
 
     // Codifica userId e plano no order_nsu para recuperá-los no webhook,
@@ -61,17 +64,21 @@ export async function onRequestPost(context) {
 
     if (!checkoutRes.ok) {
       const errText = await checkoutRes.text().catch(() => '');
-      return jsonResponse({ error: 'Falha ao criar checkout na InfinitePay', details: errText }, 502);
+      console.error("create-checkout (InfinitePay):", checkoutRes.status, errText.slice(0, 500));
+      return jsonResponse({ error: 'Não foi possível iniciar o pagamento agora. Tente novamente em instantes.' }, 502);
     }
 
-    const data = await checkoutRes.json();
+    const data = await checkoutRes.json().catch(() => ({}));
 
     if (!data.url) {
-      return jsonResponse({ error: 'InfinitePay não retornou uma URL de checkout' }, 502);
+      console.error("create-checkout: InfinitePay não retornou URL de checkout");
+      return jsonResponse({ error: 'Não foi possível iniciar o pagamento agora. Tente novamente em instantes.' }, 502);
     }
 
     return jsonResponse({ checkoutUrl: data.url, orderNsu });
   } catch (err) {
-    return jsonResponse({ error: 'Erro ao criar checkout', details: String(err) }, 500);
+    console.error("create-checkout:", err);
+    // Mensagem genérica: nunca expor detalhes internos do erro ao cliente.
+    return jsonResponse({ error: 'Erro ao iniciar o pagamento. Tente novamente.' }, 500);
   }
 }

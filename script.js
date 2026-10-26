@@ -5,7 +5,7 @@
 (function () {
   const audioA = document.getElementById('audio-el');
   const audioB = document.getElementById('audio-el-2');
-  // Necessário pra faixas remotas (Jamendo/Descobrir) tocarem com som:
+  // Necessário pra faixas remotas (aba "Descobrir") tocarem com som:
   // sem isso, uma vez que o elemento é conectado ao Web Audio API (pro
   // visualizador/crossfade), fontes de outra origem sem CORS ficam mudas.
   audioA.crossOrigin = 'anonymous';
@@ -108,6 +108,7 @@
     visualizer.appendChild(bar);
   }
   const bars = visualizer.querySelectorAll('.bar');
+  const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   let audioCtx, analyser, sourceNode, dataArray, rafId;
 
@@ -182,6 +183,10 @@
       bar.style.height = pct + '%';
       bar.classList.toggle('active', isPlaying && pct > 18);
     });
+    if (prefersReducedMotion) {
+      rafId = null;
+      return;
+    }
     rafId = requestAnimationFrame(animateVisualizer);
   }
 
@@ -200,9 +205,95 @@
     return String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
   }
 
+  function updateProgressUI(el) {
+    const duration = Number.isFinite(el?.duration) ? el.duration : 0;
+    const current = Number.isFinite(el?.currentTime) ? el.currentTime : 0;
+    const pct = duration > 0 ? Math.min(100, Math.max(0, (current / duration) * 100)) : 0;
+    progressFill.style.width = pct + '%';
+    currentTimeEl.textContent = formatTime(current);
+    durationTimeEl.textContent = formatTime(duration);
+    progressWrap.setAttribute('aria-valuenow', String(Math.round(pct)));
+    progressWrap.setAttribute('aria-valuetext', `${formatTime(current)} de ${formatTime(duration)}`);
+    progressWrap.setAttribute('aria-disabled', duration > 0 ? 'false' : 'true');
+  }
+
+  function seekBy(seconds) {
+    const el = getActive();
+    if (!el.duration || !isFinite(el.duration)) return;
+    el.currentTime = Math.min(el.duration, Math.max(0, el.currentTime + seconds));
+    updateProgressUI(el);
+  }
+
   function cleanName(filename) {
     return filename.replace(/\.[^/.]+$/, '');
   }
+
+  // ---- Sonda de duração em segundo plano -------------------------------
+  // As faixas entram na playlist com duration = null e só ganhariam duração
+  // quando tocadas, ficando como "--:--" até lá. Um único elemento <audio>
+  // compartilhado percorre uma fila lendo apenas os metadados de cada arquivo.
+  // Um elemento só evita abrir centenas de streams ao mesmo tempo quando o
+  // usuário solta uma pasta grande. Nunca disputa com os elementos de
+  // reprodução (els), que são separados.
+  const probeEl = new Audio();
+  probeEl.preload = 'metadata';
+  let probeQueue = [];      // faixas ainda sem duração conhecida
+  let probingTrack = null;   // faixa sendo lida agora
+  let probeRenderPending = false;
+
+  function flushProbeRender() {
+    if (probeRenderPending) return;
+    probeRenderPending = true;
+    setTimeout(() => {
+      probeRenderPending = false;
+      renderPlaylist();
+    }, 60);
+  }
+
+  function scheduleDurationProbe() {
+    tracks.forEach((track) => {
+      if (track && !track.duration && track.url && !probeQueue.includes(track)) {
+        probeQueue.push(track);
+      }
+    });
+    if (!probingTrack) nextProbe();
+  }
+
+  function nextProbe() {
+    probingTrack = null;
+    let track = probeQueue.shift();
+    // Pula faixas já resolvidas ou removidas da playlist no meio da fila.
+    while (track && (track.duration || !tracks.includes(track))) {
+      track = probeQueue.shift();
+    }
+    if (!track) {
+      probeEl.removeAttribute('src');
+      return;
+    }
+    probingTrack = track;
+    try {
+      probeEl.src = track.url;
+      probeEl.load();
+    } catch (e) {
+      nextProbe();
+    }
+  }
+
+  function finishProbe() {
+    if (probingTrack && tracks.includes(probingTrack)) flushProbeRender();
+    nextProbe();
+  }
+
+  probeEl.addEventListener('durationchange', () => {
+    if (!probingTrack) return;
+    if (!isFinite(probeEl.duration) || probeEl.duration <= 0) return;
+    if (!probingTrack.duration) {
+      probingTrack.duration = probeEl.duration;
+      flushProbeRender();
+    }
+  });
+  probeEl.addEventListener('loadedmetadata', finishProbe);
+  probeEl.addEventListener('error', finishProbe);
 
   const AUDIO_EXT_RE = /\.(mp3|flac|wav|m4a|aac|ogg|opus|wma|aiff|alac)$/i;
 
@@ -229,6 +320,7 @@
     });
 
     renderPlaylist();
+    scheduleDurationProbe();
 
     if (currentIndex === -1 && tracks.length > 0) {
       loadTrack(0);
@@ -245,6 +337,27 @@
     folderInput.value = '';
   });
 
+  // Labels são acionadas por clique, mas também precisam funcionar com teclado.
+  [
+    [document.getElementById('add-files-btn'), fileInput],
+    [document.getElementById('add-folder-btn'), folderInput],
+  ].forEach(([label, input]) => {
+    label.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        input.click();
+      }
+    });
+  });
+
+  function activateTrack(index) {
+    if (selectionMode) {
+      toggleTrackSelection(index);
+    } else {
+      loadTrack(index, true);
+    }
+  }
+
   function renderPlaylist() {
     playlistEl.innerHTML = '';
 
@@ -258,6 +371,8 @@
 
     tracks.forEach((track, i) => {
       const li = document.createElement('li');
+      li.tabIndex = 0;
+      li.setAttribute('aria-current', i === currentIndex ? 'true' : 'false');
       const classes = [];
       if (i === currentIndex) classes.push('active');
       if (selectionMode && selectedIndices.has(i)) classes.push('selected');
@@ -304,11 +419,12 @@
         li.appendChild(removeBtn);
       }
 
-      li.addEventListener('click', () => {
-        if (selectionMode) {
-          toggleTrackSelection(i);
-        } else {
-          loadTrack(i, true);
+      li.addEventListener('click', () => activateTrack(i));
+      li.addEventListener('keydown', (e) => {
+        if (e.target !== li) return;
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          activateTrack(i);
         }
       });
 
@@ -329,6 +445,7 @@
     if (!on) selectedIndices.clear();
     selectModeBtn.textContent = on ? 'Cancelar' : 'Selecionar';
     selectModeBtn.classList.toggle('on', on);
+    selectModeBtn.setAttribute('aria-pressed', on ? 'true' : 'false');
     selectionToolbar.classList.toggle('hidden', !on);
     renderPlaylist();
   }
@@ -380,6 +497,9 @@
     progressFill.style.width = '0%';
     currentTimeEl.textContent = '00:00';
     durationTimeEl.textContent = '00:00';
+    progressWrap.setAttribute('aria-valuenow', '0');
+    progressWrap.setAttribute('aria-valuetext', '00:00 de 00:00');
+    progressWrap.setAttribute('aria-disabled', 'true');
   }
 
   // Remove um ou vários índices de uma vez. Localiza a faixa que estava
@@ -455,11 +575,16 @@
     }
 
     el.src = track.url;
+    el.dataset.trackIndex = String(index);
     el.currentTime = 0;
     trackNameEl.textContent = track.name;
     trackNameEl.classList.remove('empty');
     progressFill.style.width = '0%';
     currentTimeEl.textContent = '00:00';
+    durationTimeEl.textContent = track.duration ? formatTime(track.duration) : '00:00';
+    progressWrap.setAttribute('aria-valuenow', '0');
+    progressWrap.setAttribute('aria-valuetext', `00:00 de ${formatTime(track.duration || 0)}`);
+    progressWrap.setAttribute('aria-disabled', track.duration ? 'false' : 'true');
 
     renderPlaylist();
     scrollActiveIntoView();
@@ -479,6 +604,10 @@
     isPlaying = playing;
     playIcon.innerHTML = playing ? ICON_PAUSE : ICON_PLAY;
     playBtn.setAttribute('aria-label', playing ? 'Pausar' : 'Reproduzir');
+    playBtn.setAttribute('title', playing ? 'Pausar' : 'Reproduzir');
+    if ('mediaSession' in navigator) {
+      navigator.mediaSession.playbackState = playing ? 'playing' : 'paused';
+    }
     if (playing) {
       if (!rafId) animateVisualizer();
     } else {
@@ -560,12 +689,14 @@
   shuffleBtn.addEventListener('click', () => {
     shuffleOn = !shuffleOn;
     shuffleBtn.classList.toggle('on', shuffleOn);
+    shuffleBtn.setAttribute('aria-pressed', shuffleOn ? 'true' : 'false');
     shuffleHistory = [];
   });
 
   repeatBtn.addEventListener('click', () => {
     repeatOn = !repeatOn;
     repeatBtn.classList.toggle('on', repeatOn);
+    repeatBtn.setAttribute('aria-pressed', repeatOn ? 'true' : 'false');
   });
 
   // ---- Sleep timer ---------------------------------------------------
@@ -742,13 +873,20 @@
   function switchActiveTo(newIdx, trackIndex) {
     activeIdx = newIdx;
     currentIndex = trackIndex;
-    trackNameEl.textContent = tracks[trackIndex].name;
+    const track = tracks[trackIndex];
+    const el = getActive();
+    if (track && el.duration && isFinite(el.duration)) {
+      track.duration = el.duration;
+    }
+    trackNameEl.textContent = track ? track.name : 'Nenhuma música carregada';
     trackNameEl.classList.remove('empty');
     gaplessPreloaded = false;
     pendingNextIndex = null;
+    updateProgressUI(el);
     renderPlaylist();
     scrollActiveIntoView();
-    updateMediaSessionMetadata(tracks[trackIndex]);
+    updateMediaSessionMetadata(track);
+    setPlayingState(!el.paused);
   }
 
   function preloadGapless() {
@@ -758,6 +896,7 @@
     pendingNextIndex = next;
     const el = getInactive();
     el.src = tracks[next].url;
+    el.dataset.trackIndex = String(next);
     el.preload = 'auto';
     try { el.load(); } catch (e) {}
     gaplessPreloaded = true;
@@ -781,6 +920,7 @@
     const track = tracks[nextIdx];
 
     toEl.src = track.url;
+    toEl.dataset.trackIndex = String(nextIdx);
     toEl.currentTime = 0;
     toGain.gain.cancelScheduledValues(audioCtx.currentTime);
     toGain.gain.setValueAtTime(0, audioCtx.currentTime);
@@ -796,10 +936,27 @@
       toGain.gain.linearRampToValueAtTime(1, now + dur);
 
       setTimeout(() => {
-        const oldEl = els[activeIdx];
+        const oldIdx = activeIdx;
+        const oldEl = els[oldIdx];
+        const oldGain = gains[oldIdx];
+        // Troca o elemento ativo ANTES de pausar o antigo: o evento pause do
+        // elemento antigo passa a ser ignorado por onPause, evitando que o
+        // botão volte para "Reproduzir" no meio da transição.
+        switchActiveTo(toIdx, nextIdx);
+        // Auto-healing: se o elemento de destino chegou pausado (corrida de
+        // buffering / autoplay), a transição anterior deixava o player parado
+        // em silêncio sem nem avisar. Retoma e sincroniza o botão.
+        if (toEl.paused) {
+          toEl.play().then(() => setPlayingState(true)).catch(() => setPlayingState(false));
+        } else {
+          setPlayingState(true);
+        }
         oldEl.pause();
         oldEl.currentTime = 0;
-        switchActiveTo(toIdx, nextIdx);
+        if (oldGain && audioCtx) {
+          oldGain.gain.cancelScheduledValues(audioCtx.currentTime);
+          oldGain.gain.value = 1;
+        }
         transitioning = false;
       }, dur * 1000 + 50);
     }).catch(() => {
@@ -821,13 +978,13 @@
     const el = e.currentTarget;
     if (el !== getActive() || transitioning) return;
 
+    if (checkSleepAtEnd()) return;
+
     if (repeatOn) {
       el.currentTime = 0;
-      el.play();
+      el.play().then(() => setPlayingState(true)).catch(() => {});
       return;
     }
-
-    if (checkSleepAtEnd()) return;
 
     if (crossfadeDuration === 0 && gaplessPreloaded && pendingNextIndex !== null) {
       // Next track is already buffered on the inactive element — swap
@@ -852,21 +1009,21 @@
 
   function onLoadedMetadata(e) {
     const el = e.currentTarget;
-    if (el !== getActive()) return;
-    durationTimeEl.textContent = formatTime(el.duration);
-    if (currentIndex !== -1 && tracks[currentIndex]) {
-      tracks[currentIndex].duration = el.duration;
+    if (!el.duration || !isFinite(el.duration)) return;
+    const trackIndex = Number(el.dataset.trackIndex);
+    if (Number.isInteger(trackIndex) && tracks[trackIndex]) {
+      tracks[trackIndex].duration = el.duration;
       renderPlaylist();
+    }
+    if (el === getActive()) {
+      updateProgressUI(el);
     }
   }
 
   function onTimeUpdate(e) {
     const el = e.currentTarget;
     if (el !== getActive()) return;
-    currentTimeEl.textContent = formatTime(el.currentTime);
-    if (el.duration) {
-      progressFill.style.width = (el.currentTime / el.duration * 100) + '%';
-    }
+    updateProgressUI(el);
     updateMediaSessionPosition(el);
     maybePrepareNext(el);
   }
@@ -882,30 +1039,63 @@
     el.addEventListener('pause', onPause);
   });
 
-  progressWrap.addEventListener('click', (e) => {
+  function seekFromPointer(e) {
     const el = getActive();
     if (!el.duration) return;
     const rect = progressWrap.getBoundingClientRect();
-    const pct = (e.clientX - rect.left) / rect.width;
+    const pct = Math.min(1, Math.max(0, (e.clientX - rect.left) / rect.width));
     el.currentTime = pct * el.duration;
+    updateProgressUI(el);
+  }
+
+  progressWrap.addEventListener('click', seekFromPointer);
+  progressWrap.addEventListener('keydown', (e) => {
+    const el = getActive();
+    if (!el.duration) return;
+    if (e.key === 'ArrowRight' || e.key === 'ArrowUp') {
+      e.preventDefault();
+      seekBy(e.shiftKey ? 30 : 5);
+    } else if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') {
+      e.preventDefault();
+      seekBy(e.shiftKey ? -30 : -5);
+    } else if (e.key === 'Home') {
+      e.preventDefault();
+      el.currentTime = 0;
+      updateProgressUI(el);
+    } else if (e.key === 'End') {
+      e.preventDefault();
+      el.currentTime = Math.max(0, el.duration - 0.25);
+      updateProgressUI(el);
+    }
   });
 
   volumeSlider.addEventListener('input', (e) => {
     const v = parseFloat(e.target.value);
     els.forEach(el => { el.volume = v; });
+    volumeSlider.setAttribute('aria-valuetext', Math.round(v * 100) + '%');
   });
   els.forEach(el => { el.volume = parseFloat(volumeSlider.value); });
+  volumeSlider.setAttribute('aria-valuetext', Math.round(parseFloat(volumeSlider.value) * 100) + '%');
 
-  // Keyboard shortcuts
+  // Keyboard shortcuts (ignored while typing or interacting with controls)
   document.addEventListener('keydown', (e) => {
-    if (e.target.tagName === 'INPUT') return;
+    if (e.defaultPrevented) return;
+    const target = e.target instanceof Element ? e.target : null;
+    if (target && target.closest('input, textarea, select, button, a, [role="slider"], [contenteditable="true"]')) return;
+    const authModal = document.getElementById('auth-modal');
+    if (authModal && !authModal.classList.contains('hidden')) return;
+
     if (e.code === 'Space') {
       e.preventDefault();
       playBtn.click();
     } else if (e.code === 'ArrowRight') {
+      e.preventDefault();
       nextBtn.click();
     } else if (e.code === 'ArrowLeft') {
+      e.preventDefault();
       prevBtn.click();
+    } else if (e.code === 'Escape') {
+      closeAllPopovers();
     }
   });
 
@@ -944,9 +1134,11 @@
 
   setupMediaSession();
   renderPlaylist();
+  progressWrap.setAttribute('aria-disabled', 'true');
 
-  // Public bridge used by premium.js (Descobrir tab) to queue remote
-  // (Jamendo) tracks into this same player, switching tabs back to Player.
+  // Public bridge used by premium.js ("Ouvir Online" tab) to queue remote
+  // tracks into this same player, switching tabs back to Player. Mantido como
+  // ponto de integração para a próxima fonte de busca online.
   window.PlinqPlayer = {
     pause() {
       pauseAudio();
@@ -959,6 +1151,7 @@
         tracks.push({ file: null, url: rt.url, name: rt.name, duration: rt.duration || 0 });
       });
       renderPlaylist();
+      scheduleDurationProbe();
       loadTrack(base + (startIndex || 0), true);
     },
 
@@ -987,14 +1180,17 @@
       if (typeof state.volume === 'number') {
         volumeSlider.value = String(state.volume);
         els.forEach(el => { el.volume = state.volume; });
+        volumeSlider.setAttribute('aria-valuetext', Math.round(state.volume * 100) + '%');
       }
       if (state.shuffle) {
         shuffleOn = true;
         shuffleBtn.classList.add('on');
+        shuffleBtn.setAttribute('aria-pressed', 'true');
       }
       if (state.repeat) {
         repeatOn = true;
         repeatBtn.classList.add('on');
+        repeatBtn.setAttribute('aria-pressed', 'true');
       }
       if (state.trackName) {
         const idx = tracks.findIndex(t => t.name === state.trackName);
@@ -1038,77 +1234,33 @@
 
 
 // ==========================================================
-// Contador de curtidas (sem login, sem cadastro)
+// Curtida local (sem API externa)
 //
-// Usa a API gratuita CountAPI (https://countapi.xyz) para manter
-// um contador global de curtidas. Cada visitante só pode curtir
-// uma vez (controlado via localStorage no próprio navegador).
-//
-// Se a API estiver indisponível (ex: sem internet, ou bloqueada),
-// o botão funciona em modo local: o contador fica salvo só
-// no navegador da pessoa, sem quebrar a experiência.
+// O estado fica somente neste navegador. Não existe contador
+// global falso nem dependência de serviço de terceiros.
 // ==========================================================
 
 (function () {
   const likeBtn = document.getElementById('like-btn');
-  const likeCountEl = document.getElementById('like-count');
-  if (!likeBtn || !likeCountEl) return;
+  const likeLabel = document.getElementById('like-label');
+  if (!likeBtn || !likeLabel) return;
 
-  // Troque "plinq-app" por um identificador único do seu projeto
-  // se quiser separar as estatísticas de outros projetos que usem CountAPI.
-  const NAMESPACE = 'plinq-app';
-  const KEY = 'curtidas';
   const STORAGE_KEY = 'plinq_liked';
-
-  const hasLiked = () => localStorage.getItem(STORAGE_KEY) === '1';
 
   function setLikedUI(liked) {
     likeBtn.classList.toggle('liked', liked);
     likeBtn.setAttribute('aria-pressed', liked ? 'true' : 'false');
+    likeBtn.setAttribute('aria-label', liked ? 'Remover curtida do Plinq neste aparelho' : 'Curtir o Plinq neste aparelho');
+    likeLabel.textContent = liked ? 'Curtido' : 'Curtir';
   }
 
-  function setCount(n) {
-    likeCountEl.textContent = String(n);
-  }
-
-  // Carrega o contador atual (somente leitura, não incrementa)
-  fetch(`https://api.countapi.xyz/get/${NAMESPACE}/${KEY}`)
-    .then(res => res.ok ? res.json() : Promise.reject())
-    .then(data => setCount(data.value ?? 0))
-    .catch(() => {
-      // Sem internet ou API fora do ar: usa contador local como fallback
-      const local = parseInt(localStorage.getItem('plinq_like_count') || '0', 10);
-      setCount(local);
-    });
-
-  setLikedUI(hasLiked());
+  setLikedUI(localStorage.getItem(STORAGE_KEY) === '1');
 
   likeBtn.addEventListener('click', () => {
-    if (hasLiked()) {
-      // Já curtiu: clicar novamente remove a curtida
-      fetch(`https://api.countapi.xyz/hit/${NAMESPACE}/${KEY}?amount=-1`)
-        .then(res => res.ok ? res.json() : Promise.reject())
-        .then(data => setCount(Math.max(0, data.value ?? 0)))
-        .catch(() => {
-          const local = Math.max(0, parseInt(localStorage.getItem('plinq_like_count') || '0', 10) - 1);
-          localStorage.setItem('plinq_like_count', String(local));
-          setCount(local);
-        });
-
-      localStorage.removeItem(STORAGE_KEY);
-      setLikedUI(false);
-    } else {
-      fetch(`https://api.countapi.xyz/hit/${NAMESPACE}/${KEY}`)
-        .then(res => res.ok ? res.json() : Promise.reject())
-        .then(data => setCount(data.value ?? 0))
-        .catch(() => {
-          const local = parseInt(localStorage.getItem('plinq_like_count') || '0', 10) + 1;
-          localStorage.setItem('plinq_like_count', String(local));
-          setCount(local);
-        });
-
-      localStorage.setItem(STORAGE_KEY, '1');
-      setLikedUI(true);
-    }
+    const liked = localStorage.getItem(STORAGE_KEY) !== '1';
+    if (liked) localStorage.setItem(STORAGE_KEY, '1');
+    else localStorage.removeItem(STORAGE_KEY);
+    setLikedUI(liked);
   });
 })();
+
