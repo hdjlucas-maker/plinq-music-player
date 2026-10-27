@@ -1,0 +1,49 @@
+# Plinq — contexto do projeto para agentes de IA
+
+Atualizado em 27/10/2026. Este arquivo registra a direção do produto, o estado conhecido e a ordem recomendada de trabalho. Atualize-o quando uma decisão ou prioridade mudar; não use este arquivo como diário de cada alteração.
+
+## Produto e decisões que não devem ser presumidas
+
+- Plinq é um player **local-first**: tocar músicas escolhidas pelo usuário é grátis, funciona sem conta e não envia os arquivos de áudio ao servidor.
+- O login é destinado à futura biblioteca online. A fonte de música online foi removida e ainda não foi escolhida; não invente uma integração ou apresente a aba vazia como catálogo disponível.
+- O plano pago/trial existe no backend, mas o pagamento real ainda precisa de validação. Não bloquear o player local por conta ou assinatura.
+- O produto é **PWA-only** (HTML, CSS e JavaScript vanilla, Cloudflare Pages Functions, D1/KV); não reintroduzir Capacitor ou APK sem uma decisão explícita do titular.
+- A reprodução em segundo plano e controles de mídia são limitados pelo navegador e pelas políticas do sistema operacional; nunca prometer paridade ou continuidade em todas as plataformas.
+- Privacidade e segurança são requisitos de produto, não tarefas opcionais de acabamento.
+
+## Organização e fonte dos arquivos
+
+- Os arquivos web editáveis ficam na raiz: `index.html`, `style.css`, `script.js`, `api-client.js`, `persistence.js` e `premium.js`.
+- O PWA usa `manifest.webmanifest`, `service-worker.js` e `pwa.js`. O service worker não deve armazenar respostas de `/api/` nem conteúdo de áudio.
+- `README.md` é a documentação para pessoas. `SECURITY.md` contém as medidas de contenção e rotação. Ambos são usados; não os remova como documentação obsoleta.
+
+## Estado confirmado e ressalvas
+
+- O player local possui playlist, reprodução, gapless, crossfade, EQ, timer, persistência local e integração de mídia no navegador.
+- Testar instalação e reprodução minimizada nos navegadores/plataformas-alvo e documentar limitações observadas. O PWA não consegue impor execução em segundo plano quando o sistema suspende o navegador.
+- O domínio principal e credenciais foram descritos como expostos em `SECURITY.md`. Essa situação requer confirmação externa e correção no painel de hospedagem; alterações locais não provam que o incidente foi contido. O Plinq não distribui APK; a antiga chave de assinatura exposta está aposentada e não deve ser reutilizada.
+- O domínio principal também tinha problemas de proxy `/api/`. Confirmar o comportamento real antes de declarar login e pagamento prontos.
+- A árvore de trabalho já continha alterações locais em autenticação, rate limit, persistência, testes e CSS antes desta tarefa. Preserve essas alterações; não faça reset, checkout ou limpeza ampla.
+- Há testes de sintaxe e de primitivos de segurança. Ainda faltam testes abrangentes do player, CI e validação real do pagamento.
+
+## Próximos passos, em ordem
+
+1. **Segurança e publicação:** confirmar a exposição documentada, mover a raiz pública para os assets finais, bloquear arquivos internos e rotacionar credenciais comprometidas. Ver checklist em `SECURITY.md`.
+2. **PWA multiplataforma:** verificar instalação, shell offline, ausência de cache de API/áudio, aviso de atualização e comportamento em navegadores-alvo.
+3. **Qualidade:** ampliar testes automatizados para playlist, áudio, persistência e falhas; executar `npm test` e `npm run smoke` quando Chrome estiver disponível.
+4. **Produto online:** escolher uma fonte de catálogo e uma proposta de valor antes de reativar a aba online ou divulgar assinatura. Validar uma compra real e o retorno do webhook antes de cobrar usuários.
+
+## Regras de trabalho para a IA
+
+- Antes de editar, examine `git status` e leia os arquivos existentes; preserve trabalho local e nunca substitua arquivos gerados sem necessidade.
+- Prefira mudanças pequenas, consistentes com os padrões atuais e cobertas por teste.
+- Não afirme que reprodução em segundo plano, PWA, domínio ou pagamentos foram validados sem executar os testes correspondentes no ambiente/dispositivo adequado.
+- Não inclua segredos, dados de conta, chaves ou keystores em código, documentação pública ou respostas.
+- Ao concluir uma tarefa, atualize este contexto apenas se o estado/prioridades duráveis tiverem mudado; atualize o `README.md` quando uma instrução de uso ou comportamento visível mudar.
+
+## Comandos úteis
+
+```bash
+npm test
+npm run smoke
+```

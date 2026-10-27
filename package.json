@@ -4,26 +4,19 @@
   "private": true,
   "description": "Plinq — player de música local-first com biblioteca online opcional.",
   "scripts": {
-    "test": "node scripts/check-syntax.js",
-    "smoke": "node scripts/smoke-test.js",
-    "android:sync": "node scripts/sync-android-web.js"
+    "test": "node scripts/check-syntax.js && node scripts/test-security.js",
+    "test:security": "node scripts/test-security.js",
+    "smoke": "node scripts/smoke-test.js"
   },
   "keywords": [
     "music-player",
     "vanilla-js",
-    "capacitor"
+    "pwa"
   ],
   "author": "devlucas",
   "license": "UNLICENSED",
   "type": "commonjs",
   "engines": {
     "node": ">=20"
-  },
-  "dependencies": {
-    "@capacitor/android": "^8.5.3",
-    "@capacitor/core": "^8.5.3"
-  },
-  "devDependencies": {
-    "@capacitor/cli": "^8.5.3"
   }
 }

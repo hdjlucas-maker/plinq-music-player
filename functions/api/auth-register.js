@@ -1,10 +1,20 @@
-import { hashPassword, createSessionToken } from "../_lib/auth.js";
+import { hashPasswordV2, createSessionToken } from "../_lib/auth.js";
 import { isValidCPF, hashCPF, legacyHashCPF } from "../_lib/cpf.js";
 import { normalizeEmail } from "../_lib/access.js";
-import { isNativeAppRequest } from "../_lib/native.js";
+import { checkRateLimit } from "../_lib/rateLimit.js";
+
+// 8 cadastros por hora por IP: segura criação em massa de trial, generoso o
+// suficiente para quem está atrás de CGNAT.
+const RATE = { name: "register", limit: 8, windowSec: 3600 };
 
 export async function onRequestPost({ request, env }) {
   try {
+    const rate = await checkRateLimit(request, env, RATE);
+    if (!rate.ok) {
+      return json({ error: "Muitas tentativas de cadastro. Tente novamente mais tarde." },
+        429, { "Retry-After": String(rate.retryAfter) });
+    }
+
     const { name, email, password, cpf } = await request.json();
 
     if (!name || !email || !password || !cpf) {
@@ -53,7 +63,7 @@ export async function onRequestPost({ request, env }) {
     }
 
     const id = crypto.randomUUID();
-    const passwordHash = await hashPassword(password);
+    const passwordHash = await hashPasswordV2(password);
 
     try {
       await env.PLINQ_BINDING.prepare(
@@ -70,7 +80,6 @@ export async function onRequestPost({ request, env }) {
 
     const token = await createSessionToken({ sub: id, email: emailNorm }, env.AUTH_SECRET);
     const user = { id, name: String(name).trim().slice(0, 120), email: emailNorm };
-    if (isNativeAppRequest(request)) user.sessionToken = token;
 
     return new Response(JSON.stringify(user), {
       status: 201,
@@ -87,9 +96,9 @@ export async function onRequestPost({ request, env }) {
   }
 }
 
-function json(obj, status = 200) {
+function json(obj, status = 200, extraHeaders = {}) {
   return new Response(JSON.stringify(obj), {
     status,
-    headers: { "Content-Type": "application/json", "Cache-Control": "no-store" },
+    headers: { "Content-Type": "application/json", "Cache-Control": "no-store", ...extraHeaders },
   });
 }

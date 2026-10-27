@@ -83,28 +83,10 @@
     }
   }
 
-  // ---- UI: estilos ----
-
-  function injectStyles() {
-    const style = document.createElement('style');
-    style.textContent = `
-      .plinq-banner {
-        position: fixed; top: 12px; left: 50%; transform: translateX(-50%);
-        background: #101418; border: 1px solid #00f5d4; color: #eaffff;
-        padding: 10px 16px; border-radius: 10px; font-size: 14px;
-        display: flex; gap: 12px; align-items: center; z-index: 9999;
-        box-shadow: 0 4px 18px rgba(0,0,0,.4);
-      }
-      .plinq-banner button {
-        background: #00f5d4; color: #04201c; border: none; border-radius: 6px;
-        padding: 6px 10px; font-weight: 600; cursor: pointer;
-      }
-      .plinq-banner button.secondary {
-        background: transparent; color: #9fb0b3; border: 1px solid #2a3338;
-      }
-    `;
-    document.head.appendChild(style);
-  }
+  // ---- UI: banner "Continuar de onde parei" ----
+  // Os estilos vivem em style.css (classe .plinq-banner): injetar <style> aqui
+  // forçaria manter 'unsafe-inline' no style-src da CSP. O conteúdo é montado
+  // com DOM API + textContent, nunca com innerHTML.
 
   // Assume o próprio botão "Adicionar pasta" já existente (id=add-folder-btn)
   // quando o navegador suporta FSA — sem criar um segundo botão. Sem FSA
@@ -132,17 +114,29 @@
   function showBanner(message, actionLabel, onAction, onDismiss) {
     const banner = document.createElement('div');
     banner.className = 'plinq-banner';
-    banner.innerHTML = `
-      <span>${message}</span>
-      <button data-action="go">${actionLabel}</button>
-      <button data-action="dismiss" class="secondary">Ignorar</button>
-    `;
+
+    const text = document.createElement('span');
+    text.textContent = message;
+
+    const goBtn = document.createElement('button');
+    goBtn.type = 'button';
+    goBtn.dataset.action = 'go';
+    goBtn.textContent = actionLabel;
+
+    const dismissBtn = document.createElement('button');
+    dismissBtn.type = 'button';
+    dismissBtn.dataset.action = 'dismiss';
+    dismissBtn.className = 'secondary';
+    dismissBtn.textContent = 'Ignorar';
+
+    banner.append(text, goBtn, dismissBtn);
     document.body.appendChild(banner);
-    banner.querySelector('[data-action="go"]').addEventListener('click', () => {
+
+    goBtn.addEventListener('click', () => {
       banner.remove();
       onAction();
     });
-    banner.querySelector('[data-action="dismiss"]').addEventListener('click', () => {
+    dismissBtn.addEventListener('click', () => {
       banner.remove();
       if (onDismiss) onDismiss();
     });
@@ -219,7 +213,6 @@
   }
 
   function init() {
-    injectStyles();
     upgradeFolderButton();
     startAutoSave();
     setTimeout(tryRestore, 300);

@@ -125,7 +125,6 @@
       });
       const data = await res.json();
       if (!res.ok) { loginError.textContent = data.error || 'Erro ao entrar.'; return; }
-      window.PlinqApi.saveSessionToken(data.sessionToken);
       currentUser = data;
       window.dispatchEvent(new CustomEvent('plinq:auth-changed'));
       closeAuthModal();
@@ -154,7 +153,6 @@
       });
       const data = await res.json();
       if (!res.ok) { registerError.textContent = data.error || 'Erro ao criar conta.'; return; }
-      window.PlinqApi.saveSessionToken(data.sessionToken);
       currentUser = data;
       window.dispatchEvent(new CustomEvent('plinq:auth-changed'));
       closeAuthModal();

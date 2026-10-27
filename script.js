@@ -1029,7 +1029,9 @@
   }
 
   function onPlay(e) { if (e.currentTarget === getActive()) setPlayingState(true); }
-  function onPause(e) { if (e.currentTarget === getActive()) setPlayingState(false); }
+  function onPause(e) {
+    if (e.currentTarget === getActive()) setPlayingState(false);
+  }
 
   els.forEach(el => {
     el.addEventListener('ended', onEnded);
@@ -1113,7 +1115,8 @@
   }
 
   function updateMediaSessionMetadata(track) {
-    if (!('mediaSession' in navigator) || !track) return;
+    if (!track) return;
+    if (!('mediaSession' in navigator)) return;
     navigator.mediaSession.metadata = new MediaMetadata({
       title: track.name,
       artist: 'Plinq',
@@ -1168,6 +1171,7 @@
       return {
         trackName: tracks[currentIndex].name,
         position: getActive().currentTime || 0,
+        isPlaying,
         volume: parseFloat(volumeSlider.value),
         shuffle: shuffleOn,
         repeat: repeatOn,
@@ -1263,4 +1267,3 @@
     setLikedUI(liked);
   });
 })();
-

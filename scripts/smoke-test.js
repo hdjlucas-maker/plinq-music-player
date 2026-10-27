@@ -7,6 +7,7 @@
 const { spawn, execSync } = require('node:child_process');
 const fs = require('node:fs');
 const http = require('node:http');
+const os = require('node:os');
 const path = require('node:path');
 
 const HTTP_PORT = Number(process.env.PORT || 8099);
@@ -21,6 +22,7 @@ const MIME = {
   '.js': 'text/javascript; charset=utf-8',
   '.css': 'text/css; charset=utf-8',
   '.json': 'application/json; charset=utf-8',
+  '.webmanifest': 'application/manifest+json; charset=utf-8',
   '.svg': 'image/svg+xml',
   '.wav': 'audio/wav',
   '.mp3': 'audio/mpeg',
@@ -66,6 +68,43 @@ function findChrome() {
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const results = [];
+let audioDir = null;
+
+function createWavFixture(filePath, frequency) {
+  const sampleRate = 8000;
+  const seconds = 6;
+  const channels = 1;
+  const bitsPerSample = 16;
+  const samples = sampleRate * seconds;
+  const dataSize = samples * channels * bitsPerSample / 8;
+  const wav = Buffer.alloc(44 + dataSize);
+
+  wav.write('RIFF', 0);
+  wav.writeUInt32LE(36 + dataSize, 4);
+  wav.write('WAVE', 8);
+  wav.write('fmt ', 12);
+  wav.writeUInt32LE(16, 16);
+  wav.writeUInt16LE(1, 20);
+  wav.writeUInt16LE(channels, 22);
+  wav.writeUInt32LE(sampleRate, 24);
+  wav.writeUInt32LE(sampleRate * channels * bitsPerSample / 8, 28);
+  wav.writeUInt16LE(channels * bitsPerSample / 8, 32);
+  wav.writeUInt16LE(bitsPerSample, 34);
+  wav.write('data', 36);
+  wav.writeUInt32LE(dataSize, 40);
+
+  for (let i = 0; i < samples; i++) {
+    const sample = Math.sin((2 * Math.PI * frequency * i) / sampleRate) * 0.15;
+    wav.writeInt16LE(Math.round(sample * 32767), 44 + i * 2);
+  }
+  fs.writeFileSync(filePath, wav);
+}
+
+function createAudioFixtures() {
+  audioDir = fs.mkdtempSync(path.join(os.tmpdir(), 'plinq-audio-'));
+  createWavFixture(path.join(audioDir, 'track-a.wav'), 440);
+  createWavFixture(path.join(audioDir, 'track-b.wav'), 660);
+}
 
 function ok(name, pass, detail = '') {
   results.push({ name, pass, detail });
@@ -120,6 +159,7 @@ function connect(wsUrl) {
 
 async function main() {
   fs.rmSync(PROFILE, { recursive: true, force: true });
+  createAudioFixtures();
 
   const chromeBin = findChrome();
   if (!chromeBin) {
@@ -180,6 +220,45 @@ async function main() {
 
     // --- T1: gate global ausente ---
     await sleep(600);
+    const manifestPresent = await ev('!!document.querySelector(\'link[rel="manifest"]\')');
+    ok('T0 manifesto PWA declarado', manifestPresent);
+    const pwaIcons = JSON.parse(await ev(`(async () => {
+      const manifest = await (await fetch('manifest.webmanifest')).json();
+      const urls = manifest.icons.map(icon => icon.src);
+      return JSON.stringify({
+        androidIcons: urls.includes('pwa-icon-192.png') && urls.includes('pwa-icon-512.png'),
+        appleIcon: !!document.querySelector('link[rel="apple-touch-icon"][href="apple-touch-icon.png"]'),
+        appleIconAvailable: (await fetch('apple-touch-icon.png')).ok,
+      });
+    })()`));
+    ok('T0a manifesto oferece ícones PWA 192 e 512', pwaIcons.androidIcons);
+    ok('T0b ícone Apple Touch disponível', pwaIcons.appleIcon && pwaIcons.appleIconAvailable);
+    const pwaCacheState = JSON.parse(await ev(`(async () => {
+      let registration = null;
+      for (let i = 0; i < 20; i++) {
+        registration = await navigator.serviceWorker.getRegistration();
+        if (registration && registration.active) break;
+        await new Promise(resolve => setTimeout(resolve, 250));
+      }
+      const cache = await caches.open('plinq-pwa-shell-v1');
+      const paths = (await cache.keys()).map(request => new URL(request.url).pathname);
+      const worker = registration && (registration.active || registration.installing || registration.waiting);
+      return JSON.stringify({
+        registered: !!(registration && registration.active
+          && new URL(registration.active.scriptURL).pathname.endsWith('/service-worker.js')),
+        state: worker ? worker.state : 'not registered',
+        shellCached: paths.some(path => path.endsWith('/index.html'))
+          && paths.some(path => path.endsWith('/script.js'))
+          && paths.some(path => path.endsWith('/pwa-icon-192.png'))
+          && paths.some(path => path.endsWith('/pwa-icon-512.png')),
+        apiOrAudioCached: paths.some(path => path.includes('/api/') || /\\.(mp3|wav|flac|m4a|ogg)$/i.test(path)),
+      });
+    })()`));
+    ok('T0b PWA registra service worker e shell offline',
+      pwaCacheState.registered && pwaCacheState.shellCached,
+      JSON.stringify(pwaCacheState));
+    ok('T0c PWA não guarda API ou faixas no cache', !pwaCacheState.apiOrAudioCached);
+
     const gateCount = await ev('document.querySelectorAll("#account-gate-overlay").length');
     ok('T1 gate global removido', gateCount === 0, `overlays=${gateCount}`);
 
@@ -201,7 +280,7 @@ async function main() {
     });
     await cdp.send('DOM.setFileInputFiles', {
       nodeId: fileNode.nodeId,
-      files: ['/tmp/plinq-audio/track-a.wav', '/tmp/plinq-audio/track-b.wav'],
+      files: [path.join(audioDir, 'track-a.wav'), path.join(audioDir, 'track-b.wav')],
     });
     await ev('document.getElementById("file-input").dispatchEvent(new Event("change", {bubbles:true}))');
     await sleep(1500);
@@ -336,6 +415,7 @@ async function main() {
   } finally {
     try { chrome.kill('SIGKILL'); } catch {}
     if (server) await new Promise((r) => server.close(r));
+    if (audioDir) fs.rmSync(audioDir, { recursive: true, force: true });
   }
 
   const failed = results.filter((r) => !r.pass);

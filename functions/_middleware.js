@@ -1,11 +1,27 @@
-import { NATIVE_APP_ORIGINS } from "./_lib/native.js";
-
-const WEB_APP_ORIGIN = "https://plinq-music-player.pages.dev";
-const ALLOWED_ORIGINS = new Set([...NATIVE_APP_ORIGINS, WEB_APP_ORIGIN]);
+// Origens web legítimas do produto. Nada de origens nativas ou curingas.
+const ALLOWED_ORIGINS = new Set([
+  "https://plinq-music-player.pages.dev",
+  "https://plinq.orderly.tec.br",
+]);
 
 export async function onRequest({ request, next }) {
   const origin = request.headers.get("Origin");
-  const headers = new Headers();
+
+  // Rejeição explícita para origem desconhecida. O navegador já bloquearia por
+  // falta do header CORS, mas assim o motivo fica visível no log do cliente e
+  // no servidor em vez de um silêncio impossível de diagnosticar.
+  if (origin && !ALLOWED_ORIGINS.has(origin)) {
+    console.warn(`middleware: origem recusada ${origin} em ${request.method} ${request.url}`);
+    return new Response(JSON.stringify({ error: "Origem não permitida." }), {
+      status: 403,
+      headers: { "Content-Type": "application/json", "Cache-Control": "no-store" },
+    });
+  }
+
+  const headers = new Headers({
+    "Cache-Control": "no-store",
+    "X-Content-Type-Options": "nosniff",
+  });
 
   if (origin && ALLOWED_ORIGINS.has(origin)) {
     headers.set("Access-Control-Allow-Origin", origin);

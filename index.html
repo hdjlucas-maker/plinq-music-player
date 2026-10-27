@@ -6,8 +6,13 @@
 <meta name="description" content="Plinq é um player de música local-first, leve e sem distrações, com biblioteca online opcional.">
 <meta name="theme-color" content="#07090c">
 <meta name="color-scheme" content="dark">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <title>Plinq — Player de Música</title>
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="manifest" href="manifest.webmanifest">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -223,12 +228,18 @@
   </div>
 </div>
 
+<div class="plinq-update-banner hidden" id="pwa-update-banner" role="status" aria-live="polite">
+  <span>Uma nova versão do Plinq está pronta.</span>
+  <button type="button" id="pwa-update-btn">Atualizar</button>
+</div>
+
 <audio id="audio-el" preload="metadata"></audio>
 <audio id="audio-el-2" preload="none"></audio>
 
-<script src="script.js"></script>
 <script src="api-client.js"></script>
+<script src="script.js"></script>
 <script src="persistence.js" defer></script>
 <script src="premium.js"></script>
+<script src="pwa.js"></script>
 </body>
 </html>

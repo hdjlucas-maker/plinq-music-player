@@ -37,7 +37,7 @@ Os quatro arquivos sensíveis têm hash SHA-256 **idêntico** ao do repositório
    }
    ```
 
-5. **Gerar novo keystore Android** e reemitir o APK — o keystore publicado está comprometido e não pode mais ser usado. Quem já instalou o APK antigo precisará desinstalá-lo.
+5. O Plinq não distribui mais APK nem mantém projeto Android. A chave de assinatura exposta está aposentada e **não pode ser reutilizada**. Quem ainda tiver o APK antigo deve removê-lo.
 6. **Rotacionar tudo** (item 2 abaixo).
 
 > Esta etapa **não foi executável** neste ambiente: não há acesso à hospedagem nem ao DNS.
@@ -56,7 +56,7 @@ Nunca escrever estes valores em código, README ou commit. Configurar no painel 
 | `INFINITEPAY_HANDLE` | identificador público da InfinitePay | se houver indício de uso indevido, revisar no painel InfinitePay |
 | `APP_BASE_URL` | checkout + webhook | — |
 | `PLINQ_OWNER_CREDENTIALS.txt` | arquivo local (ignorado pelo Git) | **apagar** após rotacionar |
-| `PLINQ_ANDROID_SIGNING.txt`, `*.jks`, `keystore.properties` | assinatura Android | **gerar keystore novo**, apagar os antigos |
+| `PLINQ_ANDROID_SIGNING.txt`, `*.jks`, `keystore.properties` | assinatura do antigo APK (aposentada) | nunca reutilizar; remover cópias expostas quando seguro |
 
 Recomendação: tratar qualquer arquivo já exposto como **permanentemente comprometido**. Rotação, não limpeza.
 
@@ -65,10 +65,10 @@ Recomendação: tratar qualquer arquivo já exposto como **permanentemente compr
 ## 3. Modelo de autenticação
 
 - **Senha**: PBKDF2-SHA256, 100.000 iterações, salt aleatório de 16 bytes por usuário, resultado `salt:hash` em hex. Nunca há texto puro no banco; **não é possível recuperar a senha** — só redefinição, que ainda não existe.
-- **Sessão**: JWT (header.payload.assinatura) assinado com HMAC-SHA256 via `AUTH_SECRET`, validade de 30 dias. Entregue como cookie `HttpOnly; Secure; SameSite=Lax` no web e como `Bearer` no app Android (o WebView não compartilha cookie).
+- **Sessão**: JWT (header.payload.assinatura) assinado com HMAC-SHA256 via `AUTH_SECRET`, validade de 30 dias. Entregue como cookie `HttpOnly; Secure; SameSite=Lax` no PWA.
 - **Cookie leitura**: `plinq_session`; verificação em `functions/_lib/getSession.js`.
 - **CPF**: usado apenas para impedir vários trials. Guardado como hash — sem pepper em instalações antigas, com **HMAC-SHA256 + `CPF_PEPPER`** nas contas novas. Nunca em texto puro.
-- **CORS**: lista explícita de origens em `functions/_middleware.js` (origem web + origens nativas). Nada de `*`.
+- **CORS**: lista explícita de origens web em `functions/_middleware.js`. Nada de `*` nem origens de apps nativos.
 - **Proprietário**: identificado por Secrets; a comparação é feita em tempo constante e a conta nunca é criada pelo fluxo público de cadastro.
 - **Pagamento**: o webhook **não confia no payload**. Ele revalida com `payment_check` da InfinitePay, confere o valor exato do plano (990 centavos) e recusa transação duplicada.
 
@@ -98,7 +98,7 @@ Referrer-Policy: strict-origin-when-cross-origin
 Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=()
 ```
 
-`script-src 'self'` sem `'unsafe-inline'` é possível porque o `index.html` da web não tem scripts inline (a flag `PlinqNativeApp` é injetada só em `www/`, que não é publicado).
+`script-src 'self'` sem `'unsafe-inline'` é possível porque o `index.html` não tem scripts inline.
 
 Para o servidor da Locaweb estes headers **não se aplicam** — precisa ser configurado lá.
 
@@ -111,8 +111,9 @@ Para o servidor da Locaweb estes headers **não se aplicam** — precisa ser con
 ```
 .git  .github  .gitignore  *.md  android  www  db  scripts  functions
 node_modules  package.json  package-lock.json  wrangler.jsonc
-capacitor.config.json  PLINQ_OWNER_CREDENTIALS.txt  PLINQ_ANDROID_SIGNING.txt
-android/keystore.properties  *.jks  *.keystore  .env  .env.*
+capacitor.config.json
+PLINQ_OWNER_CREDENTIALS.txt  PLINQ_ANDROID_SIGNING.txt
+*.jks  *.keystore  .env  .env.*
 ```
 
 Confirme após cada deploy: `https://<dominio>/.git/` e `https://<dominio>/PLINQ_OWNER_CREDENTIALS.txt` devem responder **404**.
@@ -123,7 +124,7 @@ Confirme após cada deploy: `https://<dominio>/.git/` e `https://<dominio>/PLINQ
 
 - [ ] Raiz web contém apenas os assets finais
 - [ ] `.git` e arquivos `PLINQ_*` fora da raiz web e fora de qualquer branch
-- [ ] Keystore Android regenerado, APK reassinado
+- [ ] APK antigo aposentado e nenhuma chave de assinatura exposta reutilizada
 - [ ] `AUTH_SECRET` rotacionado
 - [ ] `PLINQ_OWNER_PASSWORD` rotacionado
 - [ ] `CPF_PEPPER` definido

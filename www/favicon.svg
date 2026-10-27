@@ -1,7 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Plinq">
-  <rect width="64" height="64" rx="14" fill="#07090c"/>
-  <path d="M24 44V20l22-4v24" fill="none" stroke="#3FE7FF" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
-  <circle cx="19" cy="44" r="6" fill="#3FE7FF"/>
-  <circle cx="41" cy="40" r="6" fill="#3FE7FF"/>
-  <path d="M10 14h8M10 22h5M10 30h7" stroke="#ff9f43" stroke-width="2" stroke-linecap="round"/>
-</svg>

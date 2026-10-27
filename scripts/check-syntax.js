@@ -39,14 +39,19 @@ function checkESM(file) {
 }
 
 const esmFiles = walk(path.join(root, 'functions'));
+
+// Todo JS da raiz e de scripts/ é CommonJS. Lista derivada do diretório para
+// que um script novo (teste, build) já entre na checagem sem esquecer de editá-la.
 const cjsFiles = [
   'script.js',
   'premium.js',
   'persistence.js',
   'api-client.js',
-  'scripts/check-syntax.js',
-  'scripts/sync-android-web.js',
-].map((p) => path.join(root, p));
+  'pwa.js',
+  'service-worker.js',
+]
+  .map((p) => path.join(root, p))
+  .concat(walk(path.join(root, 'scripts')));
 
 for (const file of cjsFiles) {
   if (!fs.existsSync(file)) continue;
