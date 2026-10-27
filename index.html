@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta name="description" content="Plinq é um player de música local-first, leve e sem distrações, com biblioteca online opcional.">
+<meta name="description" content="Plinq é um player gratuito para músicas locais e vídeos do YouTube.">
 <meta name="theme-color" content="#07090c">
 <meta name="color-scheme" content="dark">
 <meta name="mobile-web-app-capable" content="yes">
@@ -22,6 +22,10 @@
 <div class="app">
   <div class="titlebar">
     <span class="logo">Plinq 🎵</span>
+    <div class="install-control">
+      <button class="pwa-install-btn" id="pwa-install-btn" type="button">Instalar app</button>
+      <span class="pwa-install-help hidden" id="pwa-install-help" role="status" aria-live="polite"></span>
+    </div>
     <span class="dots"><span></span><span></span><span></span></span>
   </div>
 
@@ -131,6 +135,7 @@
           Adicionar pasta
         </label>
       </div>
+      <p class="file-picker-help">No celular, escolha “Adicionar músicas” e selecione várias faixas. Selecionar uma pasta depende do navegador.</p>
       <input type="file" id="file-input" accept="audio/*" multiple tabindex="-1" aria-hidden="true">
       <input type="file" id="folder-input" webkitdirectory multiple tabindex="-1" aria-hidden="true">
 
@@ -158,30 +163,34 @@
   </div><!-- /tab-player -->
 
   <div class="tab-panel" id="tab-discover">
-    <div id="premium-banner" class="premium-banner hidden"></div>
-
-    <div id="discover-locked" class="discover-locked hidden">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="32" height="32"><rect x="4" y="10" width="16" height="10" rx="2"/><path d="M8 10V7a4 4 0 018 0v3"/></svg>
-      <p id="discover-locked-text">Use o Plinq por 30 dias grátis. Depois, pague R$ 9,90 por mais 30 dias de acesso.</p>
-      <button class="add-files-btn" id="discover-unlock-btn" type="button">Criar conta / Entrar</button>
-    </div>
-
-    <div id="discover-content" class="hidden">
-      <div class="discover-locked" id="discover-empty" role="status">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="32" height="32" aria-hidden="true"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
-        <p id="discover-empty-text">
-          A busca online está em preparação. Enquanto isso, o player local
-          continua completo e gratuito — sem limite de músicas.
-        </p>
-        <button class="add-files-btn" id="discover-browse-btn" type="button">Escolher músicas no dispositivo</button>
-      </div>
+    <div id="discover-content" class="discover-content">
+      <header class="youtube-header">
+        <h2>Ouvir no YouTube</h2>
+        <p>Pesquise vídeos e músicas e reproduza no player oficial do YouTube. O Plinq não baixa nem armazena áudio.</p>
+      </header>
+      <form class="youtube-search" id="youtube-search-form" role="search">
+        <label class="sr-only" for="youtube-search-query">Buscar vídeos ou músicas</label>
+        <input id="youtube-search-query" name="q" type="search" maxlength="100" minlength="2" placeholder="O que você quer ouvir?" autocomplete="off" required>
+        <button class="add-files-btn" id="youtube-search-btn" type="submit">Buscar</button>
+      </form>
+      <p class="youtube-search-status" id="youtube-search-status" role="status" aria-live="polite">A busca online é gratuita. A reprodução segue os controles e as condições do YouTube.</p>
+      <div class="youtube-results" id="youtube-results" aria-label="Resultados da busca"></div>
+      <section class="youtube-player-wrap hidden" id="youtube-player-wrap" aria-label="Player do YouTube">
+        <iframe id="youtube-player" title="Player oficial do YouTube" allow="autoplay; encrypted-media; picture-in-picture; web-share" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe>
+      </section>
+      <p class="youtube-attribution">Pesquisa via YouTube Data API. Reprodução e anúncios são fornecidos pelo YouTube.
+        Se o navegador já estiver conectado à conta Google, o player pode reconhecê-la, conforme as configurações de cookies.
+        <a href="https://www.youtube.com/t/terms" target="_blank" rel="noopener noreferrer">Termos do YouTube</a>
+        · <a href="https://policies.google.com/privacy" target="_blank" rel="noopener noreferrer">Privacidade do Google</a>
+        · <a href="privacy.html">Privacidade do Plinq</a>
+      </p>
     </div>
   </div><!-- /tab-discover -->
 
   <div class="footer-section">
     <div class="footer-note">
-      "Ouça suas músicas no seu dispositivo — sem anúncios e sem distrações."
-      <br>Player local gratuito, sem conta. <strong>Criado por devlucas.</strong>
+      "Ouça músicas do seu dispositivo ou pelo player oficial do YouTube."
+      <br>Player local e busca online gratuitos. <strong>Criado por devlucas.</strong>
     </div>
     <div class="like-row">
       <button class="like-btn" id="like-btn" type="button" aria-pressed="false" aria-label="Curtir o Plinq neste aparelho">
@@ -189,42 +198,6 @@
         <span id="like-label">Curtir</span>
       </button>
     </div>
-  </div>
-</div>
-
-<div class="modal-overlay hidden" id="auth-modal" aria-hidden="true">
-  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="auth-modal-title">
-    <h2 class="sr-only" id="auth-modal-title">Entrar ou criar conta</h2>
-    <button class="modal-close" id="auth-modal-close" type="button" aria-label="Fechar">&times;</button>
-
-    <div class="modal-tabs" role="tablist" aria-label="Entrar ou criar conta">
-      <button class="modal-tab active" id="auth-tab-login" type="button" role="tab" aria-selected="true" aria-controls="login-form" data-authtab="login">Entrar</button>
-      <button class="modal-tab" id="auth-tab-register" type="button" role="tab" aria-selected="false" aria-controls="register-form" data-authtab="register">Criar conta</button>
-    </div>
-
-    <form id="login-form" class="auth-form" role="tabpanel" aria-labelledby="auth-tab-login">
-      <label class="sr-only" for="login-email">E-mail</label>
-      <input type="email" id="login-email" name="email" placeholder="E-mail" autocomplete="email" required>
-      <label class="sr-only" for="login-password">Senha</label>
-      <input type="password" id="login-password" name="password" placeholder="Senha" autocomplete="current-password" required>
-      <div class="auth-note">Sua senha é protegida por hash e não pode ser recuperada. A recuperação por e-mail ainda não está disponível.</div>
-      <div class="auth-error" id="login-error" role="alert" aria-live="polite"></div>
-      <button type="submit" class="add-files-btn">Entrar</button>
-    </form>
-
-    <form id="register-form" class="auth-form hidden" role="tabpanel" aria-labelledby="auth-tab-register">
-      <label class="sr-only" for="register-name">Nome</label>
-      <input type="text" id="register-name" name="name" placeholder="Nome" autocomplete="name" required>
-      <label class="sr-only" for="register-email">E-mail</label>
-      <input type="email" id="register-email" name="email" placeholder="E-mail" autocomplete="email" required>
-      <label class="sr-only" for="register-password">Senha</label>
-      <input type="password" id="register-password" name="password" placeholder="Senha (mín. 8 caracteres)" autocomplete="new-password" required minlength="8">
-      <label class="sr-only" for="register-cpf">CPF</label>
-      <input type="text" id="register-cpf" name="cpf" placeholder="CPF (só números)" inputmode="numeric" maxlength="14" required>
-      <div class="auth-note">Pedimos CPF só para liberar 1 teste grátis de 30 dias por pessoa.</div>
-      <div class="auth-error" id="register-error" role="alert" aria-live="polite"></div>
-      <button type="submit" class="add-files-btn">Criar conta e começar teste grátis</button>
-    </form>
   </div>
 </div>
 
@@ -236,10 +209,9 @@
 <audio id="audio-el" preload="metadata"></audio>
 <audio id="audio-el-2" preload="none"></audio>
 
-<script src="api-client.js"></script>
 <script src="script.js"></script>
 <script src="persistence.js" defer></script>
-<script src="premium.js"></script>
+<script src="discover.js"></script>
 <script src="pwa.js"></script>
 </body>
 </html>

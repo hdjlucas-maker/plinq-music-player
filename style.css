@@ -92,6 +92,40 @@ body {
   text-shadow: 0 0 8px rgba(63,231,255,0.4);
 }
 
+.install-control {
+  position: relative;
+  margin-left: auto;
+  margin-right: 10px;
+}
+
+.pwa-install-btn {
+  min-height: 36px;
+  padding: 6px 10px;
+  color: #04201c;
+  background: var(--accent);
+  border: 0;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.pwa-install-help {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 20;
+  width: min(280px, calc(100vw - 32px));
+  padding: 10px 12px;
+  color: var(--text-main);
+  background: var(--bg-panel-2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 12px;
+  line-height: 1.5;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+}
+
 .titlebar .dots span {
   display: inline-block;
   width: 7px;
@@ -445,50 +479,161 @@ body {
 .tab-panel { display: none; }
 .tab-panel.active { display: block; }
 
-/* Premium banner */
-.premium-banner {
-  margin: 14px 18px 0;
-  padding: 10px 12px;
-  border-radius: 8px;
+.discover-content {
+  padding: 20px;
+}
+
+.youtube-header h2 {
+  margin: 0 0 8px;
+  color: var(--text-main);
+  font-size: 18px;
+}
+
+.youtube-header p,
+.youtube-search-status,
+.youtube-attribution,
+.file-picker-help {
+  color: var(--text-mute);
   font-size: 12px;
-  border: 1px solid var(--border);
-  background: var(--bg-panel-2);
-  color: var(--text-mute);
+  line-height: 1.5;
+}
+
+.youtube-search {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
   gap: 8px;
+  margin: 16px 0 8px;
 }
 
-.premium-banner.trial { border-color: var(--accent); color: var(--accent); }
-.premium-banner.active { border-color: #2ecc71; color: #2ecc71; }
-.premium-banner.expired { border-color: var(--accent-2); color: var(--accent-2); }
-
-.premium-banner button {
-  background: var(--accent);
-  border: none;
-  color: #05161a;
-  font-weight: 700;
-  font-size: 11px;
-  min-height: 40px;
-  padding: 6px 10px;
+.youtube-search input {
+  min-width: 0;
+  flex: 1;
+  min-height: 44px;
+  padding: 8px 12px;
+  color: var(--text-main);
+  background: var(--bg-panel-2);
+  border: 1px solid var(--border);
   border-radius: 6px;
-  cursor: pointer;
-  white-space: nowrap;
+  font: inherit;
 }
 
-/* Discover: locked state */
-.discover-locked {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  text-align: center;
-  gap: 12px;
-  padding: 40px 24px;
-  color: var(--text-mute);
+.youtube-search .add-files-btn {
+  flex: 0 0 auto;
 }
-.discover-locked svg { color: var(--accent); }
-.discover-locked p { font-size: 13px; line-height: 1.5; max-width: 320px; }
+
+.youtube-search .add-files-btn:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
+.youtube-search-status {
+  min-height: 1.5em;
+}
+
+.youtube-results {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr));
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.youtube-result {
+  min-width: 0;
+  padding: 10px;
+  background: var(--bg-panel-2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.youtube-result img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+  border-radius: 5px;
+}
+
+.youtube-result h3 {
+  margin: 10px 0 4px;
+  color: var(--text-main);
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.youtube-result > p {
+  margin: 0;
+  color: var(--text-mute);
+  font-size: 11px;
+}
+
+.youtube-result-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.youtube-result-actions .add-files-btn {
+  flex: 0 0 auto;
+}
+
+.youtube-result-actions a,
+.youtube-attribution a {
+  color: var(--accent);
+  font-size: 11px;
+}
+
+.youtube-player-wrap {
+  width: 100%;
+  max-width: 800px;
+  min-height: 200px;
+  margin: 20px auto 0;
+  aspect-ratio: 16 / 9;
+  background: #000;
+}
+
+.youtube-player-wrap iframe {
+  display: block;
+  width: 100%;
+  height: 100%;
+  min-height: 200px;
+  border: 0;
+}
+
+.youtube-attribution {
+  margin: 18px 0 0;
+}
+
+.file-picker-help {
+  margin: 8px 0 0;
+}
+
+.privacy-page {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 28px 20px;
+  color: var(--text-main);
+  line-height: 1.65;
+}
+
+.privacy-page h1,
+.privacy-page h2 {
+  color: var(--accent);
+}
+
+.privacy-page p,
+.privacy-page a {
+  font-size: 14px;
+}
+
+.privacy-page a {
+  color: var(--accent);
+}
+
+@media (max-width: 420px) {
+  .discover-content { padding: 16px 12px; }
+  .youtube-search .add-files-btn { padding-right: 10px; padding-left: 10px; }
+}
 
 /* Auth modal */
 .modal-overlay {

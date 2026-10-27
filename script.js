@@ -1084,9 +1084,6 @@
     if (e.defaultPrevented) return;
     const target = e.target instanceof Element ? e.target : null;
     if (target && target.closest('input, textarea, select, button, a, [role="slider"], [contenteditable="true"]')) return;
-    const authModal = document.getElementById('auth-modal');
-    if (authModal && !authModal.classList.contains('hidden')) return;
-
     if (e.code === 'Space') {
       e.preventDefault();
       playBtn.click();
@@ -1139,23 +1136,10 @@
   renderPlaylist();
   progressWrap.setAttribute('aria-disabled', 'true');
 
-  // Public bridge used by premium.js ("Ouvir Online" tab) to queue remote
-  // tracks into this same player, switching tabs back to Player. Mantido como
-  // ponto de integração para a próxima fonte de busca online.
+  // Bridge used by the online tab to pause local playback when starting a YouTube video.
   window.PlinqPlayer = {
     pause() {
       pauseAudio();
-    },
-
-    playRemoteTracks(remoteTracks, startIndex) {
-      if (!Array.isArray(remoteTracks) || remoteTracks.length === 0) return;
-      const base = tracks.length;
-      remoteTracks.forEach(rt => {
-        tracks.push({ file: null, url: rt.url, name: rt.name, duration: rt.duration || 0 });
-      });
-      renderPlaylist();
-      scheduleDurationProbe();
-      loadTrack(base + (startIndex || 0), true);
     },
 
     // Usado pelo persistence.js para adicionar arquivos vindos de

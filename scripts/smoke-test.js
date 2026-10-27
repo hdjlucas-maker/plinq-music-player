@@ -35,7 +35,23 @@ const MIME = {
 // rodando à mão antes do teste.
 function startStaticServer() {
   const server = http.createServer((req, res) => {
-    const urlPath = decodeURIComponent((req.url || '/').split('?')[0]);
+    const requestUrl = new globalThis.URL(req.url || '/', URL);
+    const urlPath = decodeURIComponent(requestUrl.pathname);
+    if (urlPath === '/api/youtube-search') {
+      res.writeHead(200, {
+        'Content-Type': 'application/json; charset=utf-8',
+        'Cache-Control': 'no-store',
+      });
+      res.end(JSON.stringify({
+        items: [{
+          id: 'abc123DEF_0',
+          title: 'Resultado de teste do YouTube',
+          channel: 'Canal de teste',
+          thumbnail: 'https://i.ytimg.com/vi/abc123DEF_0/mqdefault.jpg',
+        }],
+      }));
+      return;
+    }
     const rel = urlPath === '/' ? 'index.html' : urlPath.replace(/^\/+/, '');
     const file = path.join(ROOT, rel);
     if (!file.startsWith(ROOT + path.sep) || !fs.existsSync(file) || !fs.statSync(file).isFile()) {
@@ -222,6 +238,8 @@ async function main() {
     await sleep(600);
     const manifestPresent = await ev('!!document.querySelector(\'link[rel="manifest"]\')');
     ok('T0 manifesto PWA declarado', manifestPresent);
+    const installButtonVisible = await ev('(() => { const b = document.getElementById("pwa-install-btn"); return !!b && getComputedStyle(b).display !== "none"; })()');
+    ok('T0d botão de instalação PWA disponível', installButtonVisible);
     const pwaIcons = JSON.parse(await ev(`(async () => {
       const manifest = await (await fetch('manifest.webmanifest')).json();
       const urls = manifest.icons.map(icon => icon.src);
@@ -240,7 +258,7 @@ async function main() {
         if (registration && registration.active) break;
         await new Promise(resolve => setTimeout(resolve, 250));
       }
-      const cache = await caches.open('plinq-pwa-shell-v1');
+      const cache = await caches.open('plinq-pwa-shell-v2');
       const paths = (await cache.keys()).map(request => new URL(request.url).pathname);
       const worker = registration && (registration.active || registration.installing || registration.waiting);
       return JSON.stringify({
@@ -249,6 +267,8 @@ async function main() {
         state: worker ? worker.state : 'not registered',
         shellCached: paths.some(path => path.endsWith('/index.html'))
           && paths.some(path => path.endsWith('/script.js'))
+          && paths.some(path => path.endsWith('/discover.js'))
+          && paths.some(path => path.endsWith('/privacy.html'))
           && paths.some(path => path.endsWith('/pwa-icon-192.png'))
           && paths.some(path => path.endsWith('/pwa-icon-512.png')),
         apiOrAudioCached: paths.some(path => path.includes('/api/') || /\\.(mp3|wav|flac|m4a|ogg)$/i.test(path)),
@@ -377,28 +397,20 @@ async function main() {
     await ev('document.getElementById("tab-btn-discover").click()');
     await sleep(1200);
     const discoverVisible = await ev('getComputedStyle(document.getElementById("tab-discover")).display !== "none"');
-    const lockedVisible = await ev('!document.getElementById("discover-locked").classList.contains("hidden")');
-    ok('T5 aba Ouvir Online abre e exige conta', discoverVisible && lockedVisible);
+    const searchVisible = await ev('getComputedStyle(document.getElementById("youtube-search-form")).display !== "none"');
+    ok('T5 busca online está disponível sem conta ou pagamento', discoverVisible && searchVisible);
 
-    // --- T6: modal de autenticação ---
-    await ev('document.getElementById("discover-unlock-btn").click()');
-    await sleep(500);
-    const modalOpen = await ev('!document.getElementById("auth-modal").classList.contains("hidden")');
-    const role = await ev('document.querySelector("#auth-modal .modal").getAttribute("role")');
-    const ariaModal = await ev('document.querySelector("#auth-modal .modal").getAttribute("aria-modal")');
-    const focused = await ev('document.activeElement && (document.activeElement.id || document.activeElement.tagName)');
-    const inside = await ev('document.getElementById("auth-modal").contains(document.activeElement)');
-    ok('T6 modal abre com role/aria-modal', modalOpen && role === 'dialog' && ariaModal === 'true', `role=${role} aria=${ariaModal}`);
-    ok('T6b foco entra no modal', inside === true, `focus=${focused}`);
-
-    // Escape fecha
-    await cdp.send('Runtime.evaluate', {
-      expression: `document.getElementById("auth-modal").dispatchEvent(new KeyboardEvent("keydown",{key:"Escape",bubbles:true}))`,
-    });
-    await sleep(400);
-    const modalClosed = await ev('document.getElementById("auth-modal").classList.contains("hidden")');
-    const bodyAfter = await ev('document.body.classList.contains("modal-open")');
-    ok('T6c Escape fecha o modal e libera o body', modalClosed && bodyAfter === false);
+    await ev('document.getElementById("youtube-search-query").value = "rock brasileiro"; document.getElementById("youtube-search-form").requestSubmit()');
+    await sleep(300);
+    const resultTitle = await ev('document.querySelector("#youtube-results h3")?.textContent || ""');
+    ok('T6 busca online renderiza resultados', resultTitle === 'Resultado de teste do YouTube', resultTitle);
+    await ev('document.querySelector("#youtube-results button").click()');
+    const youtubeFrame = await ev('document.getElementById("youtube-player").getAttribute("src")');
+    ok('T6b seleção usa o player oficial com controles', youtubeFrame.includes('www.youtube.com/embed/abc123DEF_0')
+      && youtubeFrame.includes('controls=1'));
+    await ev('document.getElementById("tab-btn-player").click()');
+    const stoppedFrame = await ev('document.getElementById("youtube-player").hasAttribute("src")');
+    ok('T6c player YouTube para ao sair da aba', stoppedFrame === false);
 
     // --- T7: scroll/foco por teclado no progresso ---
     const progressAttrs = await ev(`(() => { const p = document.getElementById('progress-wrap'); return {

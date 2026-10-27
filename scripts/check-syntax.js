@@ -44,9 +44,8 @@ const esmFiles = walk(path.join(root, 'functions'));
 // que um script novo (teste, build) já entre na checagem sem esquecer de editá-la.
 const cjsFiles = [
   'script.js',
-  'premium.js',
   'persistence.js',
-  'api-client.js',
+  'discover.js',
   'pwa.js',
   'service-worker.js',
 ]

@@ -41,11 +41,16 @@ async function main() {
   try {
     fs.writeFileSync(path.join(tmp, 'package.json'), JSON.stringify({ type: 'module' }));
     fs.mkdirSync(path.join(tmp, '_lib'));
+    fs.mkdirSync(path.join(tmp, 'api'));
     for (const file of fs.readdirSync(path.join(functionsDir, '_lib'))) {
       if (!file.endsWith('.js')) continue;
       fs.copyFileSync(path.join(functionsDir, '_lib', file), path.join(tmp, '_lib', file));
     }
     fs.copyFileSync(path.join(functionsDir, '_middleware.js'), path.join(tmp, '_middleware.js'));
+    fs.copyFileSync(
+      path.join(functionsDir, 'api', 'youtube-search.js'),
+      path.join(tmp, 'api', 'youtube-search.js')
+    );
 
     const load = (rel) => import(pathToFileURL(path.join(tmp, rel)).href);
 
@@ -55,6 +60,70 @@ async function main() {
     const getSession = await load('_lib/getSession.js');
     const rateLimit = await load('_lib/rateLimit.js');
     const middleware = await load('_middleware.js');
+    const youtubeSearch = await load('api/youtube-search.js');
+
+    section('YouTube Data API — validação e player incorporado');
+    let response = await youtubeSearch.onRequestGet({
+      request: new Request('https://example.test/api/youtube-search?q=x'),
+      env: {},
+    });
+    ok(response.status === 400, 'busca curta é recusada');
+
+    response = await youtubeSearch.onRequestGet({
+      request: new Request(`https://example.test/api/youtube-search?q=${'a'.repeat(101)}`),
+      env: {},
+    });
+    ok(response.status === 400, 'busca acima de 100 caracteres é recusada');
+
+    response = await youtubeSearch.onRequestGet({
+      request: new Request('https://example.test/api/youtube-search?q=rock'),
+      env: {},
+    });
+    ok(response.status === 503, 'busca sem chave do YouTube informa que falta configurar');
+
+    const originalFetch = global.fetch;
+    let requestedUrl;
+    global.fetch = async (input) => {
+      requestedUrl = new URL(input);
+      return new Response(JSON.stringify({
+        items: [
+          {
+            id: { videoId: 'abc123DEF_0' },
+            snippet: {
+              title: '<title>',
+              channelTitle: 'Canal',
+              thumbnails: { medium: { url: 'https://i.ytimg.com/vi/abc123DEF_0/mqdefault.jpg' } },
+            },
+          },
+          {
+            id: { videoId: 'bad' },
+            snippet: { title: 'Ignorar', channelTitle: 'Canal' },
+          },
+        ],
+      }), { status: 200 });
+    };
+    try {
+      response = await youtubeSearch.onRequestGet({
+        request: new Request('https://example.test/api/youtube-search?q=rock%20brasileiro'),
+        env: { YOUTUBE_API_KEY: 'test-key', SUBSCRIPTIONS: {} },
+      });
+      const body = await response.json();
+      ok(response.status === 200 && body.items.length === 1, 'resultados são filtrados e normalizados');
+      ok(body.items[0].id === 'abc123DEF_0' && body.items[0].title === '<title>',
+        'ID e título são retornados como dados para renderização segura');
+      ok(body.items[0].thumbnail.startsWith('https://i.ytimg.com/'),
+        'somente thumbnail HTTPS do YouTube é aceita');
+      ok(requestedUrl.searchParams.get('videoEmbeddable') === 'true'
+        && requestedUrl.searchParams.get('videoSyndicated') === 'true',
+      'API retorna apenas vídeos incorporáveis');
+      ok(requestedUrl.searchParams.get('key') === 'test-key'
+        && requestedUrl.searchParams.get('q') === 'rock brasileiro',
+      'chave e consulta são enviados somente ao YouTube');
+      ok(!JSON.stringify(body).includes('test-key'), 'chave da API não aparece na resposta ao navegador');
+      ok(response.headers.get('Cache-Control') === 'no-store', 'resultado de busca não é cacheado');
+    } finally {
+      global.fetch = originalFetch;
+    }
 
     // ---------------------------------------------------------- CPF ----------
     section('CPF — validação e hash (base do trial)');

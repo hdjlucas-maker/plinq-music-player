@@ -1,13 +1,13 @@
-const CACHE_NAME = 'plinq-pwa-shell-v1';
+const CACHE_NAME = 'plinq-pwa-shell-v2';
 const SHELL_FILES = [
   './',
   './index.html',
+  './privacy.html',
   './manifest.webmanifest',
   './style.css',
   './script.js',
-  './api-client.js',
   './persistence.js',
-  './premium.js',
+  './discover.js',
   './pwa.js',
   './apple-touch-icon.png',
   './pwa-icon-192.png',
