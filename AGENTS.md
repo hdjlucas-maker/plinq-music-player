@@ -25,7 +25,7 @@ Atualizado em 27/10/2026. Este arquivo registra a direção do produto, o estado
 - O player local possui playlist, reprodução, gapless, crossfade, EQ, timer, persistência local e integração de mídia no navegador.
 - Testar instalação e reprodução minimizada nos navegadores/plataformas-alvo e documentar limitações observadas. O PWA não consegue impor execução em segundo plano quando o sistema suspende o navegador.
 - O domínio principal e credenciais foram descritos como expostos em `SECURITY.md`. Essa situação requer confirmação externa e correção no painel de hospedagem; alterações locais não provam que o incidente foi contido. O Plinq não distribui APK; a antiga chave de assinatura exposta está aposentada e não deve ser reutilizada.
-- A URL de repositório GitHub não é o aplicativo web. A publicação PWA usa Cloudflare Pages em HTTPS e deve ser validada no domínio publicado.
+- A URL de repositório GitHub (`github.com/...`) não é o aplicativo. A interface PWA é publicada em `https://hdjlucas-maker.github.io/plinq-music-player/` e chama a API no Cloudflare Pages; essa origem precisa estar autorizada em CORS.
 - A árvore de trabalho já continha alterações locais em autenticação, rate limit, persistência, testes e CSS antes desta tarefa. Preserve essas alterações; não faça reset, checkout ou limpeza ampla.
 - Há testes de sintaxe, segurança, endpoint de busca simulado e smoke test. Ainda faltam CI e validação da busca com chave real/dispositivo.
 

@@ -2,6 +2,7 @@
 const ALLOWED_ORIGINS = new Set([
   "https://plinq-music-player.pages.dev",
   "https://plinq.orderly.tec.br",
+  "https://hdjlucas-maker.github.io",
 ]);
 
 export async function onRequest({ request, next }) {

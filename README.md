@@ -82,7 +82,7 @@ npm run smoke        # teste do player e PWA no Chrome
 
 ## Busca online e deploy
 
-- O site publicado é servido pelo **Cloudflare Pages**. A URL do repositório GitHub não instala nem executa o aplicativo. O checkout e as telas de pagamento foram removidos; não há cobrança no Plinq.
+- O site publicado está no **GitHub Pages** em `https://hdjlucas-maker.github.io/plinq-music-player/`; a URL do repositório GitHub (`github.com/...`) é apenas código e não instala o app. A busca é servida separadamente pelo Cloudflare Pages em `plinq-music-player.pages.dev`. O checkout e as telas de pagamento foram removidos; não há cobrança no Plinq.
 - `/api/youtube-search` usa uma Cloudflare Pages Function para consultar a YouTube Data API sem expor a chave no navegador. O KV `SUBSCRIPTIONS` existente aplica limite de buscas por endereço IP.
 - O Google oferece, por padrão, **100 chamadas de busca por dia** para `search.list`; essa cota é compartilhada pelo projeto Google. A disponibilidade pode parar quando a cota diária acabar.
 - Para ativar a busca: crie um projeto no [Google Cloud Console](https://console.cloud.google.com/), habilite **YouTube Data API v3**, crie uma chave e restrinja-a à YouTube Data API v3. No Cloudflare Pages, adicione `YOUTUBE_API_KEY` como **Secret** em Settings → Variables and Secrets. Nunca coloque a chave no Git, no HTML ou em mensagens públicas.

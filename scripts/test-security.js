@@ -371,6 +371,13 @@ async function main() {
     ok(res.headers.get('Access-Control-Allow-Origin') === 'https://plinq.orderly.tec.br',
       'ACAO do domínio principal');
 
+    res = await run(new Request('https://example.test/api/youtube-search?q=rock', {
+      headers: { Origin: 'https://hdjlucas-maker.github.io' },
+    }));
+    ok(res.status === 200, 'origem do GitHub Pages é permitida para a API online');
+    ok(res.headers.get('Access-Control-Allow-Origin') === 'https://hdjlucas-maker.github.io',
+      'CORS responde com a origem exata do GitHub Pages');
+
     res = await run(new Request('https://example.test/api/a', { headers: { Origin: 'https://evil.example' } }));
     ok(res.status === 403, 'origem desconhecida recebe 403');
     ok(res.headers.get('Access-Control-Allow-Origin') === null, 'origem desconhecida não ganha CORS');

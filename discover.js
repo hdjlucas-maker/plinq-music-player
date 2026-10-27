@@ -10,6 +10,8 @@
   const results = document.getElementById('youtube-results');
   const playerWrap = document.getElementById('youtube-player-wrap');
   const player = document.getElementById('youtube-player');
+  const isLocalDevelopment = ['localhost', '127.0.0.1'].includes(window.location.hostname);
+  const searchApiBase = isLocalDevelopment ? '' : 'https://plinq-music-player.pages.dev';
   let activeRequest = null;
 
   function showTab(name) {
@@ -97,10 +99,14 @@
     results.replaceChildren();
 
     try {
-      const response = await fetch(`/api/youtube-search?q=${encodeURIComponent(query)}`, {
+      const response = await fetch(`${searchApiBase}/api/youtube-search?q=${encodeURIComponent(query)}`, {
         headers: { Accept: 'application/json' },
         signal: request.signal,
       });
+      const contentType = response.headers.get('Content-Type') || '';
+      if (!contentType.includes('application/json')) {
+        throw new Error(`A API retornou uma resposta inesperada (HTTP ${response.status}).`);
+      }
       const data = await response.json();
       if (!response.ok) {
         status.textContent = data.error || 'Não foi possível fazer a busca.';
@@ -113,7 +119,9 @@
     } catch (error) {
       if (error.name !== 'AbortError') {
         console.error('Busca do YouTube falhou:', error);
-        status.textContent = 'Falha de conexão ao buscar. Verifique a internet e tente novamente.';
+        status.textContent = error.message && error.message.startsWith('A API retornou')
+          ? error.message
+          : 'Falha de conexão com a API de busca. Tente novamente em instantes.';
       }
     } finally {
       if (activeRequest === request) {
