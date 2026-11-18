@@ -74,18 +74,9 @@
   // somado (masterGain) — vale tanto pro áudio A quanto B, inclusive
   // durante crossfade.
   const EQ_BANDS = [60, 230, 910, 3600, 14000];
-  let eqValues = loadEqValues();
+  let eqValues = [0, 0, 0, 0, 0];
   let eqFilters = null; // criados só quando o audioCtx existe
 
-  function loadEqValues() {
-    try {
-      const saved = JSON.parse(localStorage.getItem('plinq_eq') || 'null');
-      if (Array.isArray(saved) && saved.length === EQ_BANDS.length) return saved;
-    } catch (e) {}
-    return EQ_BANDS.map(() => 0);
-  }
-
-  function saveEqValues() {
     localStorage.setItem('plinq_eq', JSON.stringify(eqValues));
   }
 
