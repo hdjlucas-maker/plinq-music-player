@@ -212,11 +212,46 @@
     });
   }
 
+  // ---- Like counter ----
+  // Registra cada clique em "curtir". O contador acumula sempre.
+  // Nunca remove votos anteriores - apenas incrementa.
+  const LIKE_STORE = 'likeCount';
+
+  async function idbGetLikeCount() {
+    const db = await openDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(STORE, 'readonly');
+      const req = tx.objectStore(STORE).get(LIKE_STORE);
+      req.onsuccess = () => resolve(req.result !== undefined ? req.result : 0);
+      req.onerror = () => reject(req.error);
+    });
+  }
+
+  async function idbIncrementLikeCount() {
+    const current = await idbGetLikeCount();
+    const newCount = current + 1;
+    const db = await openDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(STORE, 'readwrite');
+      tx.objectStore(STORE).put(newCount, LIKE_STORE);
+      tx.oncomplete = () => resolve(newCount);
+      tx.onerror = () => reject(tx.error);
+    });
+  }
+
+  // ---- Initialization ----
   function init() {
     upgradeFolderButton();
     startAutoSave();
     setTimeout(tryRestore, 300);
   }
+
+  // Expose like counter functions via window.PlinqPlayer
+  if (window.PlinqPlayer === undefined) {
+    window.PlinqPlayer = {};
+  }
+  window.PlinqPlayer.getLikeCount = idbGetLikeCount;
+  window.PlinqPlayer.incrementLikeCount = idbIncrementLikeCount;
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', init);

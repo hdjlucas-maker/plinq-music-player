@@ -16,6 +16,15 @@
     if (!installHelp) return;
     installHelp.textContent = message;
     installHelp.classList.remove('hidden');
+    // Announce for screen readers
+    const announcement = document.createElement('div');
+    announcement.setAttribute('role', 'status');
+    announcement.setAttribute('aria-live', 'polite');
+    announcement.textContent = message;
+    // Remove any previous announcement
+    const existing = installHelp.parentElement?.querySelector('[role="status"]');
+    if (existing) existing.remove();
+    installHelp.parentNode?.appendChild(announcement);
   }
 
   function hideInstallButton() {
@@ -46,24 +55,43 @@
         return;
       }
 
+      // Hide button immediately to avoid double prompts
+      installButton.classList.add('hidden');
+
       if (deferredInstallPrompt) {
         const promptEvent = deferredInstallPrompt;
         deferredInstallPrompt = null;
         try {
           await promptEvent.prompt();
           const choice = await promptEvent.userChoice;
-          if (choice.outcome === 'accepted') hideInstallButton();
+          if (choice.outcome === 'accepted') {
+            hideInstallButton();
+          } else {
+            // Re-show button if user declined
+            installButton.classList.remove('hidden');
+          }
         } catch (error) {
-          console.error('Não foi possível abrir a instalação do Plinq:', error);
+          console.error('Não foi possível abrir a instalação do Plinx:', error);
           showInstallHelp('A instalação não abriu. Use o menu do navegador para instalar o app.');
+          installButton.classList.remove('hidden');
         }
         return;
       }
 
+      // No deferred prompt - show platform-specific help
       const isAppleMobile = /iPhone|iPad|iPod/i.test(navigator.userAgent);
-      showInstallHelp(isAppleMobile
-        ? 'No Safari, toque em Compartilhar e escolha “Adicionar à Tela de Início”.'
-        : 'No Chrome, abra o menu ⋮ e escolha “Instalar app” ou “Adicionar à tela inicial”.');
+      const isAndroid = /Android/i.test(navigator.userAgent);
+      const isWindows = /Windows NT/i.test(navigator.userAgent);
+
+      if (isAppleMobile) {
+        showInstallHelp('No Safari, toque em Compartilhar (seta para cima) e escolha “Adicionar à Tela de Início”.');
+      } else if (isAndroid) {
+        showInstallHelp('No Chrome para Android, toque no menu ⋮ e escolha “Instalar app” ou “Adicionar à tela inicial”.');
+      } else if (isWindows) {
+        showInstallHelp('No Chrome/Edge para Windows, toque no menu ⋮ e escolha “Instalar o Plinq” ou “Adicionar à tela inicial”.');
+      } else {
+        showInstallHelp('Use o menu do navegador para instalar o app como atalho na tela inicial.');
+      }
     });
   }
 

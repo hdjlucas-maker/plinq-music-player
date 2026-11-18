@@ -1233,21 +1233,28 @@
   const likeLabel = document.getElementById('like-label');
   if (!likeBtn || !likeLabel) return;
 
-  const STORAGE_KEY = 'plinq_liked';
-
-  function setLikedUI(liked) {
-    likeBtn.classList.toggle('liked', liked);
-    likeBtn.setAttribute('aria-pressed', liked ? 'true' : 'false');
-    likeBtn.setAttribute('aria-label', liked ? 'Remover curtida do Plinq neste aparelho' : 'Curtir o Plinq neste aparelho');
-    likeLabel.textContent = liked ? 'Curtido' : 'Curtir';
+  const likeCounter = document.createElement('span');
+  likeCounter.id = 'like-counter';
+  likeCounter.className = 'like-counter-label';
+  if (likeBtn.parentNode) {
+    likeBtn.parentNode.appendChild(likeCounter);
   }
 
-  setLikedUI(localStorage.getItem(STORAGE_KEY) === '1');
+  // Initialize like counter from IndexedDB
+  async function initLikeCounter() {
+    const count = await window.PlinqPlayer.getLikeCount();
+    const formatted = count.toLocaleString('pt-BR');
+    likeCounter.textContent = `${formatted}x`;
+    likeLabel.textContent = 'Curtir';
+  }
 
-  likeBtn.addEventListener('click', () => {
-    const liked = localStorage.getItem(STORAGE_KEY) !== '1';
-    if (liked) localStorage.setItem(STORAGE_KEY, '1');
-    else localStorage.removeItem(STORAGE_KEY);
-    setLikedUI(liked);
+  initLikeCounter();
+
+  likeBtn.addEventListener('click', async () => {
+    const newCount = await window.PlinqPlayer.incrementLikeCount();
+    const formatted = newCount.toLocaleString('pt-BR');
+    likeCounter.textContent = `${formatted}x`;
+    likeLabel.textContent = 'Curtir';
   });
 })();
+// Sleep Timer code

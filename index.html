@@ -26,6 +26,9 @@
       <button class="pwa-install-btn" id="pwa-install-btn" type="button">Instalar app</button>
       <span class="pwa-install-help hidden" id="pwa-install-help" role="status" aria-live="polite"></span>
     </div>
+    <span class="extra-control">
+      <button class="extra-btn" id="about-btn" type="button" aria-label="Informações do Plinq" style="min-height: 32px; padding: 6px 10px; color: #04201c; background: var(--accent); border: 0; border-radius: 6px; font-weight: 600; cursor: pointer;">ℹ</button>
+    </span>
     <span class="dots"><span></span><span></span><span></span></span>
   </div>
 
@@ -190,7 +193,7 @@
   <div class="footer-section">
     <div class="footer-note">
       "Ouça músicas do seu dispositivo ou pelo player oficial do YouTube."
-      <br>Player local e busca online gratuitos. <strong>Criado por devlucas.</strong>
+      <br>Player local e busca online gratuitos. <strong>Criado por <a href="https://orderly.tec.br" target="_blank" rel="noopener noreferrer">Lucasdev</a> da <a href="https://orderly.tec.br" target="_blank" rel="noopener noreferrer">Orderly</a>.</strong>
     </div>
     <div class="like-row">
       <button class="like-btn" id="like-btn" type="button" aria-pressed="false" aria-label="Curtir o Plinq neste aparelho">
@@ -213,5 +216,50 @@
 <script src="persistence.js" defer></script>
 <script src="discover.js"></script>
 <script src="pwa.js"></script>
+
+<!-- Modal "Sobre" - Desenvolvido por Lucasdev da Orderly -->
+<div id="about-overlay" style="
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.8);
+  color: var(--text-main);
+  z-index: 9999;
+  display: none;
+  align-items: center;
+  justify-content: center;
+">
+  <div style="
+    background: var(--bg-panel);
+    padding: 24px;
+    border-radius: 8px;
+    max-width: 360px;
+    text-align: center;
+    width: 90%;
+  ">
+    <h3 style="margin-top: 0;">Sobre o Plinq</h3>
+    <p>Versão: 1.0.0</p>
+    <p>Desenvolvido por: <a href="https://orderly.tec.br" target="_blank" style="color: var(--accent);">Lucasdev</a> da <a href="https://orderly.tec.br" target="_blank" style="color: var(--accent);">Orderly</a></p>
+    <p>Tecnologias: HTML5 · CSS3 · JavaScript Vanilla · PWA · Web Audio API · Cloudflare Pages</p>
+    <p style="margin-bottom: 0; font-size: 12px; color: var(--text-mute);">Player local e busca online gratuito. Sem conta, sem anúncios.</p>
+    <button style="margin-top: 16px; padding: 6px 12px; background: var(--accent); color: var(--bg-deep); border: none; border-radius: 4px; cursor: pointer;" onclick="hideAbout()">Fechar</button>
+  </div>
+</div>
+
+<script>
+  const aboutBtn = document.getElementById('about-btn');
+  const overlay = document.getElementById('about-overlay');
+
+  aboutBtn.addEventListener('click', () => {
+    overlay.style.display = 'flex';
+  });
+
+  overlay.addEventListener('click', (e) => {
+    if (e.target === overlay) hideAbout();
+  });
+  
+  window.hideAbout = () => {
+    overlay.style.display = 'none';
+  };
+</script>
 </body>
 </html>
